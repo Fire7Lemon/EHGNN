@@ -1,7 +1,0 @@
-best_test_macro=0.6489697426465253
-best_test_micro=0.6627906976744186
-best_epoch=90
-final_epoch=99
-final_test_macro=0.6360497254787124
-final_test_micro=0.6511627906976745
-alpha=0.7 K=20 lr=0.001 dropout=0.4 hidden=256 layers=4 batch_size=3000

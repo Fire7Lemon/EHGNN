@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import time
 import warnings
@@ -8,11 +9,25 @@ from models import EHGNN
 
 warnings.filterwarnings('ignore')
 
+
+def _ensure_sep(path):
+    """load_features concatenates paths with filenames; ensure trailing separator."""
+    path = os.path.abspath(os.path.expanduser(path))
+    if not path.endswith(os.sep):
+        path = path + os.sep
+    return path
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', type=str, default='../data/', help='path of dataset')
-    parser.add_argument('--feature_path', type=str, default='../data/mag240m_kddcup2021/processed/paper/', help='path of paper features')
-    parser.add_argument('--other_feature_path', type=str, default='../data/mag240m_kddcup2021/', help='path of other features')
+    parser.add_argument('--path', type=str, default='../data/',
+                        help='Root directory passed to ogb.lsc.MAG240MDataset (contains mag240m_kddcup2021 after download)')
+    parser.add_argument('--data_root', type=str, default=None,
+                        help='Alias for --path (Linux-friendly); if set, overrides --path')
+    parser.add_argument('--feature_path', type=str, default=None,
+                        help='Directory containing paper node_feat.npy; default: <root>/mag240m_kddcup2021/processed/paper/')
+    parser.add_argument('--other_feature_path', type=str, default=None,
+                        help='Directory containing author.npy / institution.npy; default: <root>/mag240m_kddcup2021/')
     parser.add_argument('--is_normalize', action='store_true', help='Is row normalize for features')
     parser.add_argument('--wo_l2', action='store_true', help='without l2 normalization of output')
     parser.add_argument('--wo_mweight', action='store_true', help='without meta-path weight')
@@ -42,13 +57,27 @@ metapaths.append(['writes_r', 'affiliated_with', 'affiliated_with_r', 'writes'])
 
 if __name__ == '__main__':
     args = parse_args()
+    graph_root = os.path.abspath(os.path.expanduser(args.data_root if args.data_root else args.path))
+    mag_home = os.path.join(graph_root, 'mag240m_kddcup2021')
+    if args.feature_path is None:
+        feature_path = _ensure_sep(os.path.join(mag_home, 'processed', 'paper'))
+    else:
+        feature_path = _ensure_sep(args.feature_path)
+    if args.other_feature_path is None:
+        other_feature_path = _ensure_sep(mag_home)
+    else:
+        other_feature_path = _ensure_sep(args.other_feature_path)
+
+    args.path = graph_root
+    args.feature_path = feature_path
+    args.other_feature_path = other_feature_path
     print(args)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else 'cpu')
 
     print('My similarity.')
     print(metapaths)
     start = time.perf_counter()
-    g, labels, idx_train, idx_test = load_240m(args.path)
+    g, labels, idx_train, idx_test = load_240m(graph_root)
     end = time.perf_counter()
     print('Done Load Graph, Running time: {:.4f} Seconds'.format(end - start))
 
@@ -80,7 +109,7 @@ if __name__ == '__main__':
 
     print('Load Feature')
     start = time.perf_counter()
-    features, features_map = load_features(all_related_nodes, args.feature_path, args.other_feature_path, args.is_normalize)
+    features, features_map = load_features(all_related_nodes, feature_path, other_feature_path, args.is_normalize)
     end = time.perf_counter()
     print('Done Feature, Running time: {:.4f} Seconds'.format(end - start))
 

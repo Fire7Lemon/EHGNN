@@ -44,7 +44,7 @@ dataset/
 datasets/
 raw_data/
 processed_data/
-Node Classification/results/
+**/results/
 
 # 常见大数据文件格式
 *.npz

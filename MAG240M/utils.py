@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import scipy.sparse as sp
 import torch
 import dgl
@@ -9,8 +10,9 @@ from sklearn.metrics import f1_score
 import random
 
 def load_240m(graph_path):
+    graph_path = os.path.abspath(os.path.expanduser(graph_path))
     print("Load Data")
-    dataset = MAG240MDataset(root = graph_path)
+    dataset = MAG240MDataset(root=graph_path)
     ei_writes = dataset.edge_index('author', 'writes', 'paper')
     ei_cites = dataset.edge_index('paper', 'paper')
     ei_affiliated = dataset.edge_index('author', 'institution')
@@ -115,9 +117,12 @@ def load_features(related_nodes, paper_path, other_path, is_normalize):
     return features, features_map
 
 def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
-    list_idx = list(batch_idx)
-    list_idx = [val for val in list_idx for _ in range(num_per_node)]
-    walks, types = dgl.sampling.random_walk(g=g, nodes=list_idx, metapath=metapath)
+    if torch.is_tensor(batch_idx):
+        nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
+    else:
+        nodes_list = [int(x) for x in list(batch_idx)]
+    nodes_list = [int(v) for v in nodes_list for _ in range(num_per_node)]
+    walks, types = dgl.sampling.random_walk(g=g, nodes=nodes_list, metapath=metapath)
     s_type = types[0]
     num_s = g.num_nodes(g.ntypes[s_type])
     tnode_types = set(types[1:].tolist()) # remove source node type
@@ -148,8 +153,9 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
 
                 t_nodes = list(filter(lambda x: x != -1, t_nodes))
                 if len(t_nodes) != 0:
-                    if len(t_nodes) >= K:
-                        topk_node = random.sample(t_nodes, K)
+                    k_cap = K[t_type] if isinstance(K, (list, tuple)) else K
+                    if len(t_nodes) >= k_cap:
+                        topk_node = random.sample(t_nodes, k_cap)
                     else:
                         topk_node = t_nodes
                     topk_count = [1 for _ in topk_node]
@@ -187,6 +193,8 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
     return sim_mitrix, list(tnode_types), int(s_type)
 
 def get_weights_sidx(sim_matrix, idx):
+    if torch.is_tensor(idx):
+        idx = idx.detach().cpu().numpy().astype(np.int64, copy=False).ravel()
     sim_matrix = sim_matrix[idx]
     s_idx, t_idx = sim_matrix.nonzero()
     s_idx = torch.LongTensor(s_idx)
