@@ -72,6 +72,8 @@ if __name__ == '__main__':
     args.feature_path = feature_path
     args.other_feature_path = other_feature_path
     print(args)
+    print('Resolved OGB root (parent of mag240m_kddcup2021, absolute):', graph_root)
+    print('Expected dataset_dir:', mag_home, '| exists:', os.path.isdir(mag_home))
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else 'cpu')
 
     print('My similarity.')
