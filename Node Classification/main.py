@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import torch
 import torch.nn.functional as F
 import time
@@ -32,6 +33,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
     parser.add_argument('--batch_size', type=int, default=3000, help='batch size')
     parser.add_argument('--gpu', type=int, default=0, help='number of device')
+    parser.add_argument('--seed', type=int, default=42, help='random seed')
     return parser.parse_args()
 
 
@@ -53,6 +55,13 @@ metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
 
 if __name__ == '__main__':
     args = parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     print(args)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else 'cpu')
 
@@ -105,6 +114,7 @@ if __name__ == '__main__':
     final_test_micro = None
 
     print('Begin Train.')
+    train_begin = time.perf_counter()
     for run in range(args.epochs):
         start = time.perf_counter()
         dataloader = torch.utils.data.DataLoader(idx_train, batch_size=args.batch_size, shuffle=True, drop_last=False)
@@ -181,17 +191,22 @@ if __name__ == '__main__':
     print('Final Epoch : {}, Final Test Macro-F1 : {:.4f}, Micro-F1 : {:.4f}'.format(
         final_epoch, final_test_macro, final_test_micro))
 
+    total_training_sec = time.perf_counter() - train_begin
+    print('Total training time: {:.4f} s'.format(total_training_sec))
+
     if args.dataset == 'PubMed':
         results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
         os.makedirs(results_dir, exist_ok=True)
         out_path = os.path.join(results_dir, 'pubmed_nc_result.txt')
         lines = [
+            'seed={}'.format(args.seed),
             'best_test_macro={}'.format(best_test_macro),
             'best_test_micro={}'.format(best_test_micro),
             'best_epoch={}'.format(best_epoch),
             'final_epoch={}'.format(final_epoch),
             'final_test_macro={}'.format(final_test_macro),
             'final_test_micro={}'.format(final_test_micro),
+            'total_training_time_sec={}'.format(total_training_sec),
             'alpha={} K={} lr={} dropout={} hidden={} layers={} batch_size={}'.format(
                 args.alpha, args.K, args.lr, args.dropout, args.hidden, args.n_layers, args.batch_size),
         ]
