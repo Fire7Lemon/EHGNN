@@ -1,10 +1,13 @@
 import argparse
+import os
 import torch
 import torch.nn.functional as F
 import time
 import numpy as np
+
 from utils import random_walk_sim, accuracy, get_model_need, load_dblp, load_PubMed
 from models import EHGNN
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -20,16 +23,17 @@ def parse_args():
     parser.add_argument('--walk_num', type=int, default=40, help='number of meta-path random walk per node')
     parser.add_argument('--hidden', type=int, default=256, help='hidden dimension of mlp layer')
     parser.add_argument('--n_layers', type=int, default=4, help='number of mlp layers')
-    parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
+    parser.add_argument('--dropout', type=float, default=0.4, help='dropout rate')
     parser.add_argument('--eps', type=float, default=1e-5, help='eps of ppr')
-    parser.add_argument('--alpha', type=float, default=0.5, help='alpha of ppr')
+    parser.add_argument('--alpha', type=float, default=0.7, help='alpha of ppr')
     parser.add_argument('--num_threads', type=int, default=40, help='number of threads for ppr random walk')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
     parser.add_argument('--val_epochs', type=int, default=5, help='Number of epochs to valid')
-    parser.add_argument('--lr', type=float, default=0.0003, help='learning rate')
+    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
     parser.add_argument('--batch_size', type=int, default=3000, help='batch size')
     parser.add_argument('--gpu', type=int, default=0, help='number of device')
     return parser.parse_args()
+
 
 metapaths_dblp = []
 metapaths_dblp.append(['study', 'cooccur', 'study_r'])
@@ -45,6 +49,7 @@ metapaths_pubmed.append(['gcd_r', 'gag', 'gcd'])
 metapaths_pubmed.append(['cid_r', 'cid'])
 metapaths_pubmed.append(['cid_r', 'cig', 'cig_r', 'cac', 'cis', 'cis_r', 'cid'])
 metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
+
 
 if __name__ == '__main__':
     args = parse_args()
@@ -66,7 +71,6 @@ if __name__ == '__main__':
 
     start = time.perf_counter()
     train_matrixs = []
-    val_matrixs = []
     test_matrixs = []
     t_typess = []
     for metapath in metapaths:
@@ -94,6 +98,12 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fcn = torch.nn.NLLLoss()
 
+    best_test_macro = -1.0
+    best_test_micro = -1.0
+    best_epoch = -1
+    final_test_macro = None
+    final_test_micro = None
+
     print('Begin Train.')
     for run in range(args.epochs):
         start = time.perf_counter()
@@ -101,14 +111,13 @@ if __name__ == '__main__':
         model.train()
         loss_avg = []
         ma_avg = []
-        mi_avg =[]
+        mi_avg = []
         for batch in dataloader:
             optimizer.zero_grad()
             s_idxs, t_idxs, weightss = get_model_need(len(metapaths), train_matrixs, t_typess, batch)
             batch_out = model(features, features[s_type][batch], s_idxs, t_idxs, weightss, t_typess, batch.shape[0], device)
             batch_out = F.log_softmax(batch_out, dim=1)
             y_true = labels[batch].to(device)
-            # print(batch_out.shape, y_true.squeeze(dim=1).shape, torch.max(y_true.squeeze(dim=1)))
             loss = loss_fcn(batch_out, y_true.squeeze(dim=1))
             loss_avg.append(loss.item())
             macro_f1, micro_f1 = accuracy(batch_out, y_true, args.dataset)
@@ -125,8 +134,7 @@ if __name__ == '__main__':
             with torch.no_grad():
                 model.eval()
 
-                ## Test
-                start = time.perf_counter()
+                start_ev = time.perf_counter()
                 test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
                 test_out = torch.FloatTensor([])
                 for batch_test in test_loader:
@@ -137,5 +145,56 @@ if __name__ == '__main__':
 
                 y_true = labels[idx_test]
                 macro_f1, micro_f1 = accuracy(test_out, y_true, args.dataset)
-                end = time.perf_counter()
-                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1, end-start))
+                end_ev = time.perf_counter()
+                final_test_macro, final_test_micro = macro_f1, micro_f1
+                if macro_f1 > best_test_macro:
+                    best_test_macro = macro_f1
+                    best_test_micro = micro_f1
+                    best_epoch = run
+                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1, end_ev - start_ev))
+
+    final_epoch = args.epochs - 1 if args.epochs > 0 else -1
+    last_eval_at_final_epoch = (
+        args.epochs > 0
+        and final_epoch != 0
+        and final_epoch % args.val_epochs == 0)
+    if args.epochs > 0 and not last_eval_at_final_epoch:
+        with torch.no_grad():
+            model.eval()
+            start_ev = time.perf_counter()
+            test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
+            test_out = torch.FloatTensor([])
+            for batch_test in test_loader:
+                s_idxs, t_idxs, weightss = get_model_need(len(metapaths), test_matrixs, t_typess, batch_test)
+                result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess, batch_test.shape[0], device).to('cpu')
+                result = F.log_softmax(result, dim=1)
+                test_out = torch.cat((test_out, result), dim=0)
+            y_true = labels[idx_test]
+            macro_f1, micro_f1 = accuracy(test_out, y_true, args.dataset)
+            end_ev = time.perf_counter()
+            final_test_macro, final_test_micro = macro_f1, micro_f1
+            print('Final epoch {} test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(
+                final_epoch, macro_f1, micro_f1, end_ev - start_ev))
+
+    print('Best Test Macro-F1 : {:.4f}, Micro-F1 : {:.4f}, Epoch : {}'.format(
+        best_test_macro, best_test_micro, best_epoch))
+    print('Final Epoch : {}, Final Test Macro-F1 : {:.4f}, Micro-F1 : {:.4f}'.format(
+        final_epoch, final_test_macro, final_test_micro))
+
+    if args.dataset == 'PubMed':
+        results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
+        os.makedirs(results_dir, exist_ok=True)
+        out_path = os.path.join(results_dir, 'pubmed_nc_result.txt')
+        lines = [
+            'best_test_macro={}'.format(best_test_macro),
+            'best_test_micro={}'.format(best_test_micro),
+            'best_epoch={}'.format(best_epoch),
+            'final_epoch={}'.format(final_epoch),
+            'final_test_macro={}'.format(final_test_macro),
+            'final_test_micro={}'.format(final_test_micro),
+            'alpha={} K={} lr={} dropout={} hidden={} layers={} batch_size={}'.format(
+                args.alpha, args.K, args.lr, args.dropout, args.hidden, args.n_layers, args.batch_size),
+        ]
+        with open(out_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines) + '\n')
+        print('Results saved to: {}'.format(out_path))

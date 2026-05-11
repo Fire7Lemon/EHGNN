@@ -47,11 +47,11 @@ class EHGNN(torch.nn.Module):
         out = torch.zeros((batch_size, self.out_feat)).to(device)
 
         if self.wo_mweight:
-            nm_weigths = torch.ones(self.metapath_weights.shape[0])
+            nm_weigths = torch.ones(self.metapath_weights.shape[0], device=device)
         else:
             nm_weigths = torch.softmax(self.metapath_weights, dim=0)
         if self.wo_tweight:
-            nt_weights = torch.ones(self.ntype_weights.shape[0])
+            nt_weights = torch.ones(self.ntype_weights.shape[0], device=device)
         else:
             nt_weights = torch.softmax(self.ntype_weights, dim=0)
 

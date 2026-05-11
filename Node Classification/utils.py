@@ -36,6 +36,14 @@ def load_PubMed(data_path, data_name, is_normalize):
     idx_species = num_gene + num_disease + num_chemical
     num_nodes = num_gene + num_disease + num_chemical + num_species
 
+    TYPE_GENE, TYPE_DIS, TYPE_CHEM, TYPE_SPEC = 0, 1, 2, 3
+    block_infos = [
+        (TYPE_GENE, 0, num_gene),
+        (TYPE_DIS, idx_disease, num_disease),
+        (TYPE_CHEM, idx_chemical, num_chemical),
+        (TYPE_SPEC, idx_species, num_species),
+    ]
+
     path = data_path + data_name + '/'
     feature_file = 'node.dat'
     link_file = 'link.dat'
@@ -43,35 +51,112 @@ def load_PubMed(data_path, data_name, is_normalize):
     label_train_file = 'label.dat'
     label_test_file = 'label.dat.test'
 
-    newid = np.zeros(num_nodes).astype(int)
+    def parse_node_line(line):
+        line = line.strip()
+        if not line:
+            return None
+        parts = line.split('\t') if '\t' in line else line.split(None, 3)
+        if len(parts) < 4:
+            return None
+        gid = int(parts[0])
+        typ = int(parts[2])
+        feat_str = parts[3]
+        return gid, typ, feat_str
+
+    gid_to_type = {}
+    gid_to_feat_str = {}
+    type_to_gids = {TYPE_GENE: [], TYPE_DIS: [], TYPE_CHEM: [], TYPE_SPEC: []}
+
+    with open(path + feature_file, encoding='utf-8') as f:
+        for line_data in f:
+            parsed = parse_node_line(line_data)
+            if parsed is None:
+                continue
+            gid, typ, feat_str = parsed
+            gid_to_type[gid] = typ
+            gid_to_feat_str[gid] = feat_str
+            type_to_gids[typ].append(gid)
+
+    overlay = {}
     with open(path + newid_file) as f:
         line_data = f.readline()
-        while (line_data):
-            o_id, n_id, _= line_data.split()
-            o_id = int(o_id)
-            n_id = int(n_id)
-            newid[o_id] = n_id
+        while line_data:
+            parts = line_data.split()
+            if len(parts) >= 3:
+                o_id = int(parts[0])
+                n_id = int(parts[1])
+                overlay[o_id] = n_id
             line_data = f.readline()
 
-    labels = torch.zeros(num_disease, dtype=int) - 1
+    global_to_compact = dict(overlay)
+
+    for typ, block_lo, block_span in block_infos:
+        block_hi = block_lo + block_span
+        used_in_block = set()
+        for gid in type_to_gids[typ]:
+            if gid in global_to_compact:
+                c = global_to_compact[gid]
+                if block_lo <= c < block_hi:
+                    used_in_block.add(c)
+        unmapped = sorted(g for g in type_to_gids[typ] if gid_to_type[g] == typ and g not in global_to_compact)
+        free_slots = sorted(set(range(block_lo, block_hi)) - used_in_block)
+        if len(free_slots) < len(unmapped):
+            raise RuntimeError(
+                'PubMed ID remap: not enough free compact ids in type block {} '
+                '(need {}, have {}).'.format(typ, len(unmapped), len(free_slots)))
+        for gid, slot in zip(unmapped, free_slots):
+            global_to_compact[gid] = slot
+
+    if len(global_to_compact) != len(gid_to_type):
+        missing = set(gid_to_type.keys()) - set(global_to_compact.keys())
+        raise RuntimeError('PubMed ID remap: unmapped global ids after fill: {} ...'.format(
+            list(sorted(missing))[:10]))
+
+    comp_vals = list(global_to_compact.values())
+    if len(comp_vals) != len(set(comp_vals)):
+        raise RuntimeError('PubMed ID remap: duplicate compact ids detected.')
+
+    labels = torch.zeros(num_disease, dtype=torch.long) - 1
     train_idx = []
     test_idx = []
+
+    def read_label_line(line):
+        line = line.strip()
+        if not line:
+            return None
+        parts = line.split('\t') if '\t' in line else line.split()
+        if len(parts) < 4:
+            return None
+        o_id = int(parts[0])
+        lab = int(parts[3])
+        return o_id, lab
+
     with open(path + label_train_file) as f:
         line_data = f.readline()
-        while (line_data):
-            o_id, _, _, label = line_data.split()
-            idx = newid[int(o_id)] - idx_disease
-            train_idx.append(idx)
-            labels[idx] = int(label)
+        while line_data:
+            parsed = read_label_line(line_data)
+            if parsed is not None:
+                o_id, lab = parsed
+                if gid_to_type[o_id] != TYPE_DIS:
+                    raise RuntimeError('PubMed label_train: global id {} is not disease type.'.format(o_id))
+                compact = global_to_compact[o_id]
+                idx = get_node_id_pubmed(compact)
+                train_idx.append(idx)
+                labels[idx] = lab
             line_data = f.readline()
 
     with open(path + label_test_file) as f:
         line_data = f.readline()
-        while (line_data):
-            o_id, _, _, label = line_data.split()
-            idx = newid[int(o_id)] - idx_disease
-            test_idx.append(idx)
-            labels[idx] = int(label)
+        while line_data:
+            parsed = read_label_line(line_data)
+            if parsed is not None:
+                o_id, lab = parsed
+                if gid_to_type[o_id] != TYPE_DIS:
+                    raise RuntimeError('PubMed label_test: global id {} is not disease type.'.format(o_id))
+                compact = global_to_compact[o_id]
+                idx = get_node_id_pubmed(compact)
+                test_idx.append(idx)
+                labels[idx] = lab
             line_data = f.readline()
 
     edge_s = {}
@@ -81,12 +166,14 @@ def load_PubMed(data_path, data_name, is_normalize):
         edge_t[i] = []
     with open(path + link_file) as f:
         line_data = f.readline()
-        while(line_data):
-            s_id, t_id, link_type, _ = line_data.split()
-            s_id = get_node_id_pubmed(newid[int(s_id)])
-            t_id = get_node_id_pubmed(newid[int(t_id)])
-            edge_s[int(link_type)].append(s_id)
-            edge_t[int(link_type)].append(t_id)
+        while line_data:
+            parts = line_data.split()
+            if len(parts) >= 4:
+                s_id, t_id, link_type, _ = parts[0], parts[1], parts[2], parts[3]
+                s_id = get_node_id_pubmed(global_to_compact[int(s_id)])
+                t_id = get_node_id_pubmed(global_to_compact[int(t_id)])
+                edge_s[int(link_type)].append(s_id)
+                edge_t[int(link_type)].append(t_id)
             line_data = f.readline()
 
     g = dgl.heterograph({
@@ -100,6 +187,11 @@ def load_PubMed(data_path, data_name, is_normalize):
         ('species', 'swg', 'gene'): (torch.tensor(edge_s[7]), torch.tensor(edge_t[7])),
         ('species', 'swd', 'disease'): (torch.tensor(edge_s[8]), torch.tensor(edge_t[8])),
         ('species', 'sas', 'species'): (torch.tensor(edge_s[9]), torch.tensor(edge_t[9]))
+    }, num_nodes_dict={
+        'gene': num_gene,
+        'disease': num_disease,
+        'chemical': num_chemical,
+        'species': num_species,
     })
     new_edges = {}
     ntypes = set()
@@ -112,17 +204,23 @@ def load_PubMed(data_path, data_name, is_normalize):
         new_edges[(dtype, etype + "_r", stype)] = (dst, src)
         ntypes.add(stype)
         ntypes.add(dtype)
-    new_g = dgl.heterograph(new_edges)
+    new_g = dgl.heterograph(new_edges, num_nodes_dict={
+        'gene': num_gene,
+        'disease': num_disease,
+        'chemical': num_chemical,
+        'species': num_species,
+    })
 
     features_all = torch.zeros((num_nodes, 200))
     with open(path + feature_file, encoding='utf-8') as f:
-        line_data = f.readline()
-        while (line_data):
-            node_id, _, _, feature = line_data.split()
-            node_id = newid[int(node_id)]
-            feature = torch.FloatTensor(list(map(float, feature.split(','))))
-            features_all[node_id] = feature
-            line_data = f.readline()
+        for line_data in f:
+            parsed = parse_node_line(line_data)
+            if parsed is None:
+                continue
+            gid, _, feat_str = parsed
+            compact = global_to_compact[gid]
+            feature = torch.FloatTensor(list(map(float, feat_str.split(','))))
+            features_all[compact] = feature
     print("Done Feature!")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
@@ -375,9 +473,12 @@ def load_dblp(data_path, data_name, is_normalize):
     return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(test_idx)
 
 def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
-    list_idx = list(batch_idx)
-    list_idx = [val for val in list_idx for _ in range(num_per_node)]
-    walks, types = dgl.sampling.random_walk(g=g, nodes=list_idx, metapath=metapath)
+    if torch.is_tensor(batch_idx):
+        nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
+    else:
+        nodes_list = [int(x) for x in list(batch_idx)]
+    nodes_list = [int(v) for v in nodes_list for _ in range(num_per_node)]
+    walks, types = dgl.sampling.random_walk(g=g, nodes=nodes_list, metapath=metapath)
     s_type = types[0]
     num_s = g.num_nodes(g.ntypes[types[0]])
     tnode_types = set(types[1:].tolist()) # remove source node type
@@ -447,6 +548,8 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
     return sim_mitrix, list(tnode_types), int(s_type)
 
 def get_weights_sidx(sim_matrix, idx):
+    if torch.is_tensor(idx):
+        idx = idx.detach().cpu().numpy().astype(np.int64, copy=False).ravel()
     sim_matrix = sim_matrix[idx]
     s_idx, t_idx = sim_matrix.nonzero()
     s_idx = torch.LongTensor(s_idx)
