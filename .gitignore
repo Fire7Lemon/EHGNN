@@ -1,0 +1,66 @@
+# =========================
+# Python cache
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+*.egg-info/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Checkpoints / models
+# =========================
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+runs/
+outputs/
+
+# =========================
+# Datasets
+# =========================
+data/
+dataset/
+datasets/
+raw_data/
+processed_data/
+
+# 常见大数据文件格式
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.mat
+*.h5
+*.hdf5
+*.csv
+*.tsv
+*.jsonl
+
+# 压缩包
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.gz
