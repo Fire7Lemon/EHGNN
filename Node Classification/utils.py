@@ -6,6 +6,11 @@ from collections import Counter
 from sklearn.metrics import f1_score
 import random
 
+"""
+数据加载 + random walk + 邻居选择 + 构造模型输入
+"""
+
+
 def get_node_id_pubmed(id):
     num_gene = 13561
     num_disease = 20163
@@ -25,6 +30,7 @@ def get_node_id_pubmed(id):
         return (id - idx_chemical)
     else:
         return (id - idx_species)
+
 
 def load_PubMed(data_path, data_name, is_normalize):
     """读取 PubMed：解析 node/link/label，构建全局 ID→紧凑 ID 映射与 DGL 异质图。"""
@@ -233,7 +239,9 @@ def load_PubMed(data_path, data_name, is_normalize):
     features[2] = features_all[:num_gene]
     features[3] = features_all[idx_species:]
 
-    return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(test_idx)
+    return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(
+        test_idx)
+
 
 def get_node_id_yelp(id):
     num_business = 7474
@@ -254,6 +262,7 @@ def get_node_id_yelp(id):
         return (id - idx_stars)
     else:
         return (id - idx_phrase)
+
 
 def load_Yelp(data_path, data_name, is_normalize):
     """读取 Yelp：构图与多标签，特征来自 features.npy。"""
@@ -315,7 +324,7 @@ def load_Yelp(data_path, data_name, is_normalize):
         edge_t[i] = []
     with open(path + link_file, encoding='utf-8') as f:
         line_data = f.readline()
-        while(line_data):
+        while (line_data):
             s_id, t_id, link_type, _ = line_data.split()
             s_id = get_node_id_yelp(newid[int(s_id)])
             t_id = get_node_id_yelp(newid[int(t_id)])
@@ -360,6 +369,7 @@ def load_Yelp(data_path, data_name, is_normalize):
 
     return new_g, features, torch.LongTensor(labels), torch.LongTensor(train_idx), torch.LongTensor(test_idx)
 
+
 def get_node_id_dblp(id):
     num_phrase = 217557
     num_author = 1766361
@@ -379,6 +389,7 @@ def get_node_id_dblp(id):
         return (id - idx_venue)
     else:
         return (id - idx_year)
+
 
 def load_dblp(data_path, data_name, is_normalize):
     """读取 DBLP：作者分类标签与异质图，特征维度 300。"""
@@ -425,7 +436,7 @@ def load_dblp(data_path, data_name, is_normalize):
         edge_t[i] = []
     with open(path + link_file, encoding='utf-8') as f:
         line_data = f.readline()
-        while(line_data):
+        while (line_data):
             s_id, t_id, link_type, _ = line_data.split()
             s_id = get_node_id_dblp(int(s_id))
             t_id = get_node_id_dblp(int(t_id))
@@ -473,7 +484,8 @@ def load_dblp(data_path, data_name, is_normalize):
     features[2] = features_all[idx_venue:idx_year]
     features[3] = features_all[idx_year:]
 
-    return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(test_idx)
+    return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(
+        test_idx)
 
 
 def select_neighbors_by_strategy(t_nodes, K, strategy, hybrid_ratio, temp):
@@ -557,7 +569,7 @@ def select_neighbors_by_strategy(t_nodes, K, strategy, hybrid_ratio, temp):
 
 
 def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
-                     neighbor_strategy='freq', hybrid_ratio=0.8, temp=1.0):
+                    neighbor_strategy='freq', hybrid_ratio=0.8, temp=1.0):
     """对 batch 源节点做随机游走，再按策略选 Top-K 邻居，写出 CSR 相似矩阵。"""
     if torch.is_tensor(batch_idx):
         nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
@@ -606,9 +618,11 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
 
     for t_type in tnode_types:
         num_t = g.num_nodes(g.ntypes[t_type])
-        sim_mitrix[t_type] = sp.csr_matrix((topk_counts[t_type], (row_nodes[t_type], col_nodes[t_type])), shape=(num_s, num_t))
+        sim_mitrix[t_type] = sp.csr_matrix((topk_counts[t_type], (row_nodes[t_type], col_nodes[t_type])),
+                                           shape=(num_s, num_t))
 
     return sim_mitrix, list(tnode_types), int(s_type)
+
 
 def get_weights_sidx(sim_matrix, idx):
     """取 sim_matrix 中与 idx 对应源节点相关的所有非零边，返回源索引、目标索引与权重。"""
@@ -619,6 +633,7 @@ def get_weights_sidx(sim_matrix, idx):
     s_idx = torch.LongTensor(s_idx)
     weights = torch.FloatTensor(sim_matrix.data)
     return s_idx, t_idx, weights
+
 
 def get_model_need(n_metapaths, sim_matrixs, t_typess, batch):
     """为当前 batch 在每个 meta-path、每种目标类型上拼接邻居索引与 RW 权重。"""
@@ -636,7 +651,8 @@ def get_model_need(n_metapaths, sim_matrixs, t_typess, batch):
         s_idxs.append(s_idx)
         t_idxs.append(t_idx)
         weightss.append(weights)
-    return  s_idxs, t_idxs, weightss
+    return s_idxs, t_idxs, weightss
+
 
 def graph2matrix(src, dst, matrix_temp):
     """将边列表转为稠密临时矩阵再输出 CSR 邻接（供辅助构图）。"""
@@ -646,9 +662,11 @@ def graph2matrix(src, dst, matrix_temp):
     adj = sp.csr_matrix(matrix_temp)
     return adj
 
+
 def trans_sparse_matrix(D):
     x = sp.find(D)
-    return sp.csc_matrix((x[2], (x[1], x[0])), shape = (D.shape[1], D.shape[0]))
+    return sp.csc_matrix((x[2], (x[1], x[0])), shape=(D.shape[1], D.shape[0]))
+
 
 def accuracy(output, labels, dataset):
     """测试集 Macro-F1 / Micro-F1；Yelp 为多标签逐样本平均。"""
@@ -670,14 +688,3 @@ def accuracy(output, labels, dataset):
         macro_f1 = f1_score(correct, preds, average='macro')
         micro_f1 = f1_score(correct, preds, average='micro')
     return macro_f1, micro_f1
-
-
-
-
-
-
-
-
-
-
-
