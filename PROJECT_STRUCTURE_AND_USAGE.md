@@ -1,4 +1,4 @@
-# EHGNN — Project Structure & Usage
+# EHGNN 项目结构与使用说明
 
 文档依据当前仓库布局整理（路径相对于仓库根目录 `EHGNN/`）。运行命令前请将工作目录切换到对应子项目。
 

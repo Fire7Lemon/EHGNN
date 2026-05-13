@@ -11,7 +11,7 @@ warnings.filterwarnings('ignore')
 
 
 def _ensure_sep(path):
-    """load_features concatenates paths with filenames; ensure trailing separator."""
+    """load_features 会把路径与文件名拼接；保证目录路径以分隔符结尾。"""
     path = os.path.abspath(os.path.expanduser(path))
     if not path.endswith(os.sep):
         path = path + os.sep
@@ -21,35 +21,35 @@ def _ensure_sep(path):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', type=str, default='../data/',
-                        help='Root directory passed to ogb.lsc.MAG240MDataset (contains mag240m_kddcup2021 after download)')
+                        help='传给 ogb.lsc.MAG240MDataset(root=...) 的父目录（下载后出现 mag240m_kddcup2021/）')
     parser.add_argument('--data_root', type=str, default=None,
-                        help='Alias for --path (Linux-friendly); if set, overrides --path')
+                        help='与 --path 同义别名（Linux 友好）；若指定则覆盖 --path')
     parser.add_argument('--feature_path', type=str, default=None,
-                        help='Directory containing paper node_feat.npy; default: <root>/mag240m_kddcup2021/processed/paper/')
+                        help='论文特征目录（含 node_feat.npy）；默认 <root>/mag240m_kddcup2021/processed/paper/')
     parser.add_argument('--other_feature_path', type=str, default=None,
-                        help='Directory containing author.npy / institution.npy; default: <root>/mag240m_kddcup2021/')
-    parser.add_argument('--is_normalize', action='store_true', help='Is row normalize for features')
-    parser.add_argument('--wo_l2', action='store_true', help='without l2 normalization of output')
-    parser.add_argument('--wo_mweight', action='store_true', help='without meta-path weight')
-    parser.add_argument('--wo_tweight', action='store_true', help='without node type weight')
-    parser.add_argument('--r_neighbor', action='store_true', help='random choice neighborhoods')
-    parser.add_argument('--K_a', type=int, default=10, help='Top K of similarity, number of author per node')
-    parser.add_argument('--K_i', type=int, default=5, help='Top K of similarity, number of institution per node')
-    parser.add_argument('--K_p', type=int, default=20, help='Top K of similarity, number of paper per node')
-    parser.add_argument('--walk_num', type=int, default=40, help='number of meta-path random walk per node')
-    parser.add_argument('--hidden', type=int, default=256, help='hidden dimension of mlp layer')
-    parser.add_argument('--n_layers', type=int, default=4, help='number of mlp layers')
-    parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
-    parser.add_argument('--alpha', type=float, default=0.5, help='alpha of ppr')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
-    parser.add_argument('--val_epochs', type=int, default=5, help='Number of epochs to valid')
-    parser.add_argument('--lr', type=float, default=0.003, help='learning rate')
-    parser.add_argument('--batch_size', type=int, default=3000, help='batch size')
-    parser.add_argument('--gpu', type=int, default=0, help='number of device')
+                        help='作者/机构等辅助特征目录；默认 <root>/mag240m_kddcup2021/')
+    parser.add_argument('--is_normalize', action='store_true', help='特征按行归一化')
+    parser.add_argument('--wo_l2', action='store_true', help='关闭 MLP 输出 L2 归一化')
+    parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 权重')
+    parser.add_argument('--wo_tweight', action='store_true', help='关闭节点类型权重')
+    parser.add_argument('--r_neighbor', action='store_true', help='RW 后随机邻居 Top-K')
+    parser.add_argument('--K_a', type=int, default=10, help='作者邻居 Top-K')
+    parser.add_argument('--K_i', type=int, default=5, help='机构邻居 Top-K')
+    parser.add_argument('--K_p', type=int, default=20, help='论文邻居 Top-K')
+    parser.add_argument('--walk_num', type=int, default=40, help='每节点 RW 次数')
+    parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏维度')
+    parser.add_argument('--n_layers', type=int, default=4, help='MLP 层数')
+    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout')
+    parser.add_argument('--alpha', type=float, default=0.5, help='融合系数 α（自身与邻居）')
+    parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
+    parser.add_argument('--val_epochs', type=int, default=5, help='验证间隔 epoch')
+    parser.add_argument('--lr', type=float, default=0.003, help='学习率')
+    parser.add_argument('--batch_size', type=int, default=3000, help='批大小')
+    parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
     return parser.parse_args()
 
 metapaths = []
-## 'cites', 'writes', 'affiliated_with'
+# 关系语义涉及 cites / writes / affiliated_with 等，下列为 meta-path 序列
 metapaths.append(['writes_r', 'writes', 'writes_r', 'writes'])
 metapaths.append(['cites', 'cites', 'cites', 'cites'])
 metapaths.append(['cites_r', 'cites', 'cites_r', 'cites'])
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     end = time.perf_counter()
     print('Done sim, Running time: {:.4f} Seconds'.format(end - start))
 
-    ## type : set
+    # 论文 / 作者 / 机构三类节点上的邻居集合（set）
     train_related_nodes = get_need_nodes(train_matrixs, 3, t_typess)
     test_related_nodes = get_need_nodes(test_matrixs, 3, t_typess)
     all_related_nodes = []
@@ -161,7 +161,7 @@ if __name__ == '__main__':
             with torch.no_grad():
                 model.eval()
 
-                ## Test
+                # 验证集 / 测试推理
                 start = time.perf_counter()
                 test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
                 test_out = torch.FloatTensor([])

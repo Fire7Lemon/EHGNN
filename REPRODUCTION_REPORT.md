@@ -1,4 +1,4 @@
-# Reproduction Report — EHGNN
+# 复现报告 — EHGNN
 
 ---
 

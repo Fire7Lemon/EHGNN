@@ -1,7 +1,4 @@
-"""
-PubMed ablation study: multiple configurations x seeds, aggregate mean ± std.
-Uses existing CLI flags only; does not modify training or model code.
-"""
+"""PubMed 消融：多配置 × 多种子，汇总 Macro/Micro 的均值与标准差；仅调用现有 CLI。"""
 import csv
 import os
 import shutil
@@ -16,7 +13,7 @@ OUT_DIR = os.path.join(RESULTS_ROOT, 'pubmed_ablation')
 
 SEEDS = [42, 3407, 2026]
 
-# (paper_row_name, file_tag, extra_argv)
+# (表格显示名, 结果文件 tag, 传给 main.py 的额外参数)
 ABLATIONS = [
     ('EHGNN', 'full', []),
     ('w/o L2', 'wo_l2', ['--wo_l2']),
@@ -61,7 +58,7 @@ def run_all():
                 'best_test_micro': float(kv['best_test_micro']),
             })
 
-    # Per-method aggregates (best_test_macro / micro only)
+    # 按方法聚合（仅 best_test_macro / micro）
     csv_path = os.path.join(OUT_DIR, 'summary.csv')
     fieldnames = ['method', 'tag', 'seed', 'best_test_macro', 'best_test_micro']
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:

@@ -8,27 +8,27 @@ from models import EHGNN
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='Yelp', help='dataset')
-    parser.add_argument('--path', type=str, default='../data/', help='path of dataset')
-    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/', help='path of other features')
-    parser.add_argument('--is_normalize', action='store_true', help='Is row normalize for features')
-    parser.add_argument('--wo_l2', action='store_true', help='without l2 normalization of output')
-    parser.add_argument('--wo_mweight', action='store_true', help='without meta-path weight')
-    parser.add_argument('--wo_tweight', action='store_true', help='without node type weight')
-    parser.add_argument('--r_neighbor', action='store_true', help='random choice neighborhoods')
-    parser.add_argument('--K', type=int, default=20, help='Top K of similarity, number of neighbors per node')
-    parser.add_argument('--walk_num', type=int, default=40, help='number of meta-path random walk per node')
-    parser.add_argument('--hidden', type=int, default=256, help='hidden dimension of mlp layer')
-    parser.add_argument('--n_layers', type=int, default=4, help='number of mlp layers')
-    parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
-    parser.add_argument('--eps', type=float, default=1e-5, help='eps of ppr')
-    parser.add_argument('--alpha', type=float, default=0.5, help='alpha of ppr')
-    parser.add_argument('--num_threads', type=int, default=40, help='number of threads for ppr random walk')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
-    parser.add_argument('--val_epochs', type=int, default=5, help='Number of epochs to valid')
-    parser.add_argument('--lr', type=float, default=0.0003, help='learning rate')
-    parser.add_argument('--batch_size', type=int, default=3000, help='batch size')
-    parser.add_argument('--gpu', type=int, default=0, help='number of device')
+    parser.add_argument('--dataset', type=str, default='Yelp', help='数据集名称，传给 load_Yelp 拼接路径')
+    parser.add_argument('--path', type=str, default='../data/', help='数据根路径前缀')
+    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/', help='其它特征路径（入口未使用）')
+    parser.add_argument('--is_normalize', action='store_true', help='特征是否按行归一化')
+    parser.add_argument('--wo_l2', action='store_true', help='关闭 MLP 输出 L2 归一化')
+    parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 可学习权重')
+    parser.add_argument('--wo_tweight', action='store_true', help='关闭节点类型可学习权重')
+    parser.add_argument('--r_neighbor', action='store_true', help='RW 后随机取邻居 Top-K')
+    parser.add_argument('--K', type=int, default=20, help='相似邻居数量上限')
+    parser.add_argument('--walk_num', type=int, default=40, help='每节点 meta-path 随机游走次数')
+    parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏维度')
+    parser.add_argument('--n_layers', type=int, default=4, help='MLP 层数')
+    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout 比率')
+    parser.add_argument('--eps', type=float, default=1e-5, help='PPR 数值项（当前 RW 未用）')
+    parser.add_argument('--alpha', type=float, default=0.5, help='自身分支与邻居聚合的融合系数 α')
+    parser.add_argument('--num_threads', type=int, default=40, help='预留线程数（当前未用）')
+    parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
+    parser.add_argument('--val_epochs', type=int, default=5, help='验证间隔（epoch）')
+    parser.add_argument('--lr', type=float, default=0.0003, help='学习率')
+    parser.add_argument('--batch_size', type=int, default=3000, help='批大小')
+    parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
     return parser.parse_args()
 
 metapaths_yelp = []
@@ -36,7 +36,7 @@ metapaths_yelp.append(['locatedin', 'locatedin_r'])
 metapaths_yelp.append(['rate', 'rate_r'])
 metapaths_yelp.append(['describedwith', 'context', 'describedwith_r'])
 
-# ## Yelp
+# Yelp 多标签节点分类入口（损失为 BCELoss）
 if __name__ == '__main__':
     args = parse_args()
     print(args)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
             s_idxs, t_idxs, weightss = get_model_need(len(metapaths), train_matrixs, t_typess, batch)
             batch_out = model(features, features[s_type][batch], s_idxs, t_idxs, weightss, t_typess, batch.shape[0], device).sigmoid()
             y_true = labels[batch].to(device)
-            # print(batch_out.shape, y_true.squeeze(dim=1).shape, torch.max(y_true.squeeze(dim=1)))
+            # 调试时可打印 batch_out / y_true 形状
             loss = loss_fcn(batch_out, y_true.float())
             loss_avg.append(loss.item())
             macro_f1, micro_f1 = accuracy(batch_out, y_true, args.dataset)
@@ -110,7 +110,7 @@ if __name__ == '__main__':
         if run % args.val_epochs == 0 and run != 0:
             with torch.no_grad():
                 model.eval()
-                ## Test
+                # 测试集评估
                 start = time.perf_counter()
                 test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
                 test_out = torch.FloatTensor([])

@@ -1,6 +1,4 @@
-"""
-Run PubMed node classification with multiple seeds and aggregate statistics.
-"""
+"""多随机种子运行 PubMed 节点分类，汇总 mean/std 等指标。"""
 import csv
 import os
 import shutil

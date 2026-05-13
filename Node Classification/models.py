@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch_scatter import scatter
 
 class EHGNN_MLP(torch.nn.Module):
+    """多层感知机（MLP），可选输出 L2 归一化。"""
     def __init__(self, in_feat, hidden, out_feat, n_layer, wo_l2, dropout):
         super(EHGNN_MLP, self).__init__()
 
@@ -17,7 +18,7 @@ class EHGNN_MLP(torch.nn.Module):
         self.epsilon = torch.FloatTensor([1e-12])
 
     def l2_norm(self, x, device):
-        # This is an equivalent replacement for tf.l2_normalize, see https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/l2_normalize for more information.
+        # 与 TensorFlow 的 tf.l2_normalize 等价：逐行 L2 归一化，防止除零见 epsilon
         return x / (torch.max(torch.norm(x, dim=1, keepdim=True), self.epsilon.to(device)))
 
     def forward(self, x, device):
@@ -32,6 +33,7 @@ class EHGNN_MLP(torch.nn.Module):
             return self.l2_norm(x, device)
 
 class EHGNN(torch.nn.Module):
+    """EHGNN（Efficient HGNN）：meta-path 邻居聚合 + 可学习 MWeight/TWeight + α 融合自身表征。"""
     def __init__(self, in_feat, hidden, out_feat, n_layer, alpha, n_metapath, n_types, wo_l2, wo_mweight, wo_tweight, dropout):
         super(EHGNN, self).__init__()
         self.out_feat = out_feat
@@ -43,7 +45,7 @@ class EHGNN(torch.nn.Module):
         self.mlp = EHGNN_MLP(in_feat, hidden, out_feat, n_layer, wo_l2, dropout)
 
     def forward(self, X, s_features, s_idxs, t_idxs, weightss, t_typess, batch_size, device):
-        # print(self.ntype_weights)
+        # 调试时可打印 self.ntype_weights
         out = torch.zeros((batch_size, self.out_feat)).to(device)
 
         if self.wo_mweight:
