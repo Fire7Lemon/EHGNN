@@ -9,31 +9,38 @@ import numpy as np
 from utils import random_walk_sim, accuracy, get_model_need, load_dblp, load_PubMed
 from models import EHGNN
 
-
+# 命令行参数解析
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='PubMed', help='dataset')
-    parser.add_argument('--path', type=str, default='../data/', help='path of dataset')
-    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/', help='path of other features')
-    parser.add_argument('--is_normalize', action='store_true', help='Is row normalize for features')
-    parser.add_argument('--wo_l2', action='store_true', help='without l2 normalization of output')
-    parser.add_argument('--wo_mweight', action='store_true', help='without meta-path weight')
-    parser.add_argument('--wo_tweight', action='store_true', help='without node type weight')
-    parser.add_argument('--r_neighbor', action='store_true', help='random choice neighborhoods')
-    parser.add_argument('--K', type=int, default=20, help='Top K of similarity, number of neighbors per node')
-    parser.add_argument('--walk_num', type=int, default=40, help='number of meta-path random walk per node')
-    parser.add_argument('--hidden', type=int, default=256, help='hidden dimension of mlp layer')
-    parser.add_argument('--n_layers', type=int, default=4, help='number of mlp layers')
-    parser.add_argument('--dropout', type=float, default=0.4, help='dropout rate')
-    parser.add_argument('--eps', type=float, default=1e-5, help='eps of ppr')
-    parser.add_argument('--alpha', type=float, default=0.7, help='alpha of ppr')
-    parser.add_argument('--num_threads', type=int, default=40, help='number of threads for ppr random walk')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
-    parser.add_argument('--val_epochs', type=int, default=5, help='Number of epochs to valid')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
-    parser.add_argument('--batch_size', type=int, default=3000, help='batch size')
-    parser.add_argument('--gpu', type=int, default=0, help='number of device')
-    parser.add_argument('--seed', type=int, default=42, help='random seed')
+    parser.add_argument('--dataset', type=str, default='PubMed', help='数据集名称（PubMed / DBLP），决定加载逻辑与 meta-path 列表')
+    parser.add_argument('--path', type=str, default='../data/', help='数据根路径前缀，与数据集名拼接为 data_path+name/')
+    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/', help='其它特征路径（当前入口未使用，仅占位）')
+    parser.add_argument('--is_normalize', action='store_true', help='特征是否按行归一化（每行和为 1）')
+    parser.add_argument('--wo_l2', action='store_true', help='关闭 MLP（Multi-Layer Perceptron，多层感知机）输出的 L2 归一化')
+    parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 可学习权重（MWeight），改为均匀权重')
+    parser.add_argument('--wo_tweight', action='store_true', help='关闭目标节点类型可学习权重（TWeight），改为均匀权重')
+    parser.add_argument('--r_neighbor', action='store_true', help='RW 后对邻居随机采样 Top-K，而非按出现频次')
+    parser.add_argument('--neighbor_strategy', type=str, default='freq',
+                        choices=['freq', 'random', 'hybrid', 'temp'],
+                        help='邻居选择：freq=频次 Top-K（默认）；random/hybrid/temp 见 select_neighbors_by_strategy')
+    parser.add_argument('--hybrid_ratio', type=float, default=0.8,
+                        help='hybrid：高频槽占比 int(K*ratio)，其余槽从剩余唯一候选随机')
+    parser.add_argument('--temp', type=float, default=1.0,
+                        help='temp：p_i ∝ count_i^(1/temp)，无放回采样至多 K 个')
+    parser.add_argument('--K', type=int, default=20, help='每个源节点保留的相似邻居数量上限（Top-K）')
+    parser.add_argument('--walk_num', type=int, default=40, help='每个节点沿 meta-path 执行的随机游走次数')
+    parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏层维度')
+    parser.add_argument('--n_layers', type=int, default=4, help='MLP 层数')
+    parser.add_argument('--dropout', type=float, default=0.4, help='Dropout 比率')
+    parser.add_argument('--eps', type=float, default=1e-5, help='与 PPR（Personalized PageRank，个性化 PageRank）相关的数值稳定项（当前 RW 流程未使用）')
+    parser.add_argument('--alpha', type=float, default=0.7, help='融合系数：自身 MLP 表征与邻居聚合表征的加权（见 EHGNN.forward）')
+    parser.add_argument('--num_threads', type=int, default=40, help='预留：PPR / RW 线程数（当前 DGL random_walk 路径未使用）')
+    parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
+    parser.add_argument('--val_epochs', type=int, default=5, help='每隔多少 epoch 在测试集上验证一次')
+    parser.add_argument('--lr', type=float, default=1e-3, help='Adam 学习率')
+    parser.add_argument('--batch_size', type=int, default=3000, help='训练批大小')
+    parser.add_argument('--gpu', type=int, default=0, help='CUDA 设备编号')
+    parser.add_argument('--seed', type=int, default=42, help='随机种子（random / numpy / torch）')
     return parser.parse_args()
 
 
@@ -55,6 +62,11 @@ metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
 
 if __name__ == '__main__':
     args = parse_args()
+    if not (0.0 <= args.hybrid_ratio <= 1.0):
+        raise ValueError('hybrid_ratio must be in [0, 1], got {}'.format(args.hybrid_ratio))
+    if args.temp <= 0:
+        raise ValueError('temp must be > 0, got {}'.format(args.temp))
+    neighbor_effective = 'random' if args.r_neighbor else args.neighbor_strategy
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -83,8 +95,12 @@ if __name__ == '__main__':
     test_matrixs = []
     t_typess = []
     for metapath in metapaths:
-        train_matrix, t_types, s_type = random_walk_sim(idx_train, g, metapath, args.walk_num, args.K, args.r_neighbor)
-        test_matrix, _, _ = random_walk_sim(idx_test, g, metapath, args.walk_num, args.K, args.r_neighbor)
+        train_matrix, t_types, s_type = random_walk_sim(
+            idx_train, g, metapath, args.walk_num, args.K, args.r_neighbor,
+            neighbor_strategy=args.neighbor_strategy, hybrid_ratio=args.hybrid_ratio, temp=args.temp)
+        test_matrix, _, _ = random_walk_sim(
+            idx_test, g, metapath, args.walk_num, args.K, args.r_neighbor,
+            neighbor_strategy=args.neighbor_strategy, hybrid_ratio=args.hybrid_ratio, temp=args.temp)
         train_matrixs.append(train_matrix)
         test_matrixs.append(test_matrix)
         t_typess.append(t_types)
@@ -200,6 +216,9 @@ if __name__ == '__main__':
         out_path = os.path.join(results_dir, 'pubmed_nc_result.txt')
         lines = [
             'seed={}'.format(args.seed),
+            'neighbor_strategy={}'.format(neighbor_effective),
+            'hybrid_ratio={}'.format(args.hybrid_ratio),
+            'temp={}'.format(args.temp),
             'best_test_macro={}'.format(best_test_macro),
             'best_test_micro={}'.format(best_test_micro),
             'best_epoch={}'.format(best_epoch),

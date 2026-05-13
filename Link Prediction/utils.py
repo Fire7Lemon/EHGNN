@@ -110,7 +110,7 @@ def load_PubMed(data_path, data_name, is_normalize):
         ntypes.add(stype)
         ntypes.add(dtype)
     new_g = dgl.heterograph(new_edges)
-    print("Done Graph!")
+    print("异构图构建完成。")
 
     features_all = torch.zeros((num_nodes, 200))
     with open(path + feature_file, encoding='utf-8') as f:
@@ -121,11 +121,11 @@ def load_PubMed(data_path, data_name, is_normalize):
             feature = torch.FloatTensor(list(map(float, feature.split(','))))
             features_all[node_id] = feature
             line_data = f.readline()
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
-    ## ['chemical', 'disease', 'gene', 'species']
+    ## PubMed：特征块顺序 [chemical, disease, gene, species]
     features = {}
     features[0] = features_all[idx_chemical:idx_species]
     features[1] = features_all[idx_disease:idx_chemical]
@@ -233,11 +233,11 @@ def load_DBLP(data_path, data_name, is_normalize):
             feature = torch.FloatTensor(list(map(float, feature.split(','))))
             features_all[node_id] = feature
             line_data = f.readline()
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
-    ## ['author', 'phrase', 'venue', 'year']
+    ## DBLP：特征块顺序 [author, phrase, venue, year]
     features = {}
     features[0] = features_all[idx_author:idx_venue]
     features[1] = features_all[:num_phrase]
@@ -344,18 +344,18 @@ def load_Yelp(data_path, data_name, is_normalize):
         ntypes.add(stype)
         ntypes.add(dtype)
     new_g = dgl.heterograph(new_edges)
-    print("Done Graph!")
+    print("异构图构建完成。")
 
     features_all = torch.zeros((num_nodes, 200))
     feature_temp = torch.FloatTensor(np.load(path + feature_file))
     for i in range(features_all.shape[0]):
         id_temp = newid[i]
         features_all[i] = feature_temp[id_temp]
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
-    ## ['business', 'location', 'phrase', 'stars']
+    ## Yelp：特征块顺序 [business, location, phrase, stars]
     features = {}
     features[0] = features_all[:num_business]
     features[1] = features_all[idx_loaction:idx_stars]
@@ -382,7 +382,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
     walks, types = dgl.sampling.random_walk(g=g, nodes=list_idx, metapath=metapath)
     s_type = types[0]
     num_s = g.num_nodes(g.ntypes[types[0]])
-    tnode_types = set(types[1:].tolist()) # remove source node type
+    tnode_types = set(types[1:].tolist())  # 去掉起点类型，保留末端目标类型
     row_nodes = {}
     col_nodes = {}
     topk_counts = {}
@@ -400,7 +400,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
                 t_indexs = torch.nonzero(types == t_type)
 
                 if t_type == types[0]:
-                    ## delete source node:
+                    # 同源类型时去掉游走序列的第一个位置，避免重复计源点
                     t_indexs = t_indexs[1:]
 
                 t_nodes = []
@@ -425,7 +425,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
                 t_indexs = torch.nonzero(types == t_type)
 
                 if t_type == types[0]:
-                    ## delete source node:
+                    # 同源类型时去掉游走序列的第一个位置，避免重复计源点
                     t_indexs = t_indexs[1:]
 
                 t_nodes = []

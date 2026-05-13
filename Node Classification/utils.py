@@ -27,6 +27,7 @@ def get_node_id_pubmed(id):
         return (id - idx_species)
 
 def load_PubMed(data_path, data_name, is_normalize):
+    """读取 PubMed：解析 node/link/label，构建全局 ID→紧凑 ID 映射与 DGL 异质图。"""
     num_gene = 13561
     num_disease = 20163
     num_chemical = 26522
@@ -221,11 +222,11 @@ def load_PubMed(data_path, data_name, is_normalize):
             compact = global_to_compact[gid]
             feature = torch.FloatTensor(list(map(float, feat_str.split(','))))
             features_all[compact] = feature
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
-    ## ['chemical', 'disease', 'gene', 'species']
+    # features 索引顺序：[chemical, disease, gene, species]，与后续 meta-path 目标类型对应
     features = {}
     features[0] = features_all[idx_chemical:idx_species]
     features[1] = features_all[idx_disease:idx_chemical]
@@ -255,6 +256,7 @@ def get_node_id_yelp(id):
         return (id - idx_phrase)
 
 def load_Yelp(data_path, data_name, is_normalize):
+    """读取 Yelp：构图与多标签，特征来自 features.npy。"""
     num_business = 7474
     num_location = 39
     num_stars = 9
@@ -345,11 +347,11 @@ def load_Yelp(data_path, data_name, is_normalize):
     for i in range(features_all.shape[0]):
         id_temp = newid[i]
         features_all[i] = feature_temp[id_temp]
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
-    ## ['business', 'location', 'phrase', 'stars']
+    # features 索引顺序：[business, location, phrase, stars]
     features = {}
     features[0] = features_all[:num_business]
     features[1] = features_all[idx_loaction:idx_stars]
@@ -379,6 +381,7 @@ def get_node_id_dblp(id):
         return (id - idx_year)
 
 def load_dblp(data_path, data_name, is_normalize):
+    """读取 DBLP：作者分类标签与异质图，特征维度 300。"""
     num_phrase = 217557
     num_author = 1766361
     num_venue = 5076
@@ -460,7 +463,7 @@ def load_dblp(data_path, data_name, is_normalize):
             feature = torch.FloatTensor(list(map(float, feature.split(','))))
             features_all[node_id] = feature
             line_data = f.readline()
-    print("Done Feature!")
+    print("特征加载完成。")
     if is_normalize:
         features_all = features_all / torch.sum(features_all, dim=1, keepdim=True)
 
@@ -472,16 +475,101 @@ def load_dblp(data_path, data_name, is_normalize):
 
     return new_g, features, torch.LongTensor(labels).unsqueeze(1), torch.LongTensor(train_idx), torch.LongTensor(test_idx)
 
-def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
+
+def select_neighbors_by_strategy(t_nodes, K, strategy, hybrid_ratio, temp):
+    """由 RW 终点多重集选出至多 K 个邻居及归一化权重（非负、和为 1）。"""
+    t_nodes = [int(x) for x in t_nodes if x != -1]
+    if len(t_nodes) == 0:
+        return [], []
+
+    if strategy == 'random':
+        # 与旧版 --r_neighbor 一致：在多重集上 random.sample（允许同一节点 id 出现多次时被多次抽到）
+        if len(t_nodes) <= K:
+            picked = t_nodes
+        else:
+            picked = random.sample(t_nodes, K)
+        w = np.ones(len(picked), dtype=float)
+        w = w / w.sum()
+        return picked, w.tolist()
+
+    ctr = Counter(t_nodes)
+
+    if strategy == 'freq':
+        if len(t_nodes) <= K:
+            topk = ctr.most_common()
+        else:
+            topk = ctr.most_common(K)
+        topk_node = [int(_[0]) for _ in topk]
+        topk_c = np.array([float(_[1]) for _ in topk], dtype=float)
+        s = float(topk_c.sum())
+        if s <= 0:
+            raise ValueError('select_neighbors_by_strategy(freq): zero sum counts')
+        return topk_node, (topk_c / s).tolist()
+
+    if strategy == 'hybrid':
+        if not (0.0 <= hybrid_ratio <= 1.0):
+            raise ValueError('hybrid_ratio must be in [0, 1]')
+        uniq_ordered = [int(n) for n, _ in ctr.most_common()]
+        if len(uniq_ordered) <= K:
+            topk_node = uniq_ordered
+            topk_c = np.array([float(ctr[n]) for n in topk_node], dtype=float)
+            s = float(topk_c.sum())
+            if s <= 0:
+                raise ValueError('select_neighbors_by_strategy(hybrid): zero sum counts')
+            return topk_node, (topk_c / s).tolist()
+
+        top_num = int(K * hybrid_ratio)
+        top_num = max(0, min(top_num, K))
+        top_pick = uniq_ordered[:top_num]
+        remainder = uniq_ordered[top_num:]
+        rand_slots = K - top_num
+        extra = []
+        if rand_slots > 0 and len(remainder) > 0:
+            take = min(rand_slots, len(remainder))
+            extra = random.sample(remainder, take)
+        selected = top_pick + extra
+        topk_c = np.array([float(ctr[n]) for n in selected], dtype=float)
+        s = float(topk_c.sum())
+        if s <= 0:
+            topk_c = np.ones(len(selected), dtype=float)
+            s = float(topk_c.sum())
+        return selected, (topk_c / s).tolist()
+
+    if strategy == 'temp':
+        if temp <= 0:
+            raise ValueError('temp must be > 0')
+        nodes_list_u = [int(n) for n in ctr.keys()]
+        counts = np.array([float(ctr[n]) for n in nodes_list_u], dtype=float)
+        logits = np.power(counts, 1.0 / float(temp))
+        s = float(logits.sum())
+        if s <= 0 or not np.isfinite(s):
+            logits = np.ones_like(logits)
+            s = float(logits.sum())
+        p = logits / s
+        k_take = min(K, len(nodes_list_u))
+        idx = np.random.choice(len(nodes_list_u), size=k_take, replace=False, p=p)
+        picked = [nodes_list_u[int(i)] for i in idx]
+        sel_p = p[idx].astype(float)
+        sel_p = sel_p / sel_p.sum()
+        return picked, sel_p.tolist()
+
+    raise ValueError('unknown neighbor strategy: {}'.format(strategy))
+
+
+def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
+                     neighbor_strategy='freq', hybrid_ratio=0.8, temp=1.0):
+    """对 batch 源节点做随机游走，再按策略选 Top-K 邻居，写出 CSR 相似矩阵。"""
     if torch.is_tensor(batch_idx):
         nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
+        n_batch = int(batch_idx.shape[0])
     else:
         nodes_list = [int(x) for x in list(batch_idx)]
+        n_batch = len(nodes_list)
     nodes_list = [int(v) for v in nodes_list for _ in range(num_per_node)]
     walks, types = dgl.sampling.random_walk(g=g, nodes=nodes_list, metapath=metapath)
     s_type = types[0]
     num_s = g.num_nodes(g.ntypes[types[0]])
-    tnode_types = set(types[1:].tolist()) # remove source node type
+    tnode_types = set(types[1:].tolist())  # 去掉游走起点类型，只保留 meta-path 末端类型
     row_nodes = {}
     col_nodes = {}
     topk_counts = {}
@@ -492,54 +580,29 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
         col_nodes[t_type] = []
         topk_counts[t_type] = []
 
-    if random_flag:
-        for i in range(batch_idx.shape[0]):
-            s_node = int(walks[i * num_per_node, 0])
-            for t_type in tnode_types:
-                t_indexs = torch.nonzero(types == t_type)
+    strategy_eff = 'random' if random_flag else neighbor_strategy
 
-                if t_type == types[0]:
-                    ## delete source node:
-                    t_indexs = t_indexs[1:]
+    for i in range(n_batch):
+        s_node = int(walks[i * num_per_node, 0])
+        for t_type in tnode_types:
+            t_indexs = torch.nonzero(types == t_type)
 
-                t_nodes = []
-                for t_index in t_indexs:
-                    t_node = walks[i * num_per_node:(i + 1) * num_per_node, t_index].squeeze().tolist()
-                    t_nodes.extend(t_node)
+            if t_type == types[0]:
+                # 起点类型与目标类型相同时，跳过第一个重复位置，避免把源当邻居
+                t_indexs = t_indexs[1:]
 
-                t_nodes = list(filter(lambda x: x != -1, t_nodes))
-                if len(t_nodes) != 0:
-                    if len(t_nodes) >= K:
-                        topk_node = random.sample(t_nodes, K)
-                    else:
-                        topk_node = t_nodes
-                    topk_count = [1 for _ in topk_node]
-                    row_nodes[t_type].extend([s_node for _ in range(len(topk_node))])
-                    col_nodes[t_type].extend(topk_node)
-                    topk_counts[t_type].extend(topk_count / np.sum(topk_count))
-    else:
-        for i in range(batch_idx.shape[0]):
-            s_node = int(walks[i * num_per_node, 0])
-            for t_type in tnode_types:
-                t_indexs = torch.nonzero(types == t_type)
+            t_nodes = []
+            for t_index in t_indexs:
+                t_node = walks[i * num_per_node:(i + 1) * num_per_node, t_index].squeeze().tolist()
+                t_nodes.extend(t_node)
 
-                if t_type == types[0]:
-                    ## delete source node:
-                    t_indexs = t_indexs[1:]
-
-                t_nodes = []
-                for t_index in t_indexs:
-                    t_node = walks[i * num_per_node:(i + 1) * num_per_node, t_index].squeeze().tolist()
-                    t_nodes.extend(t_node)
-
-                t_nodes = list(filter(lambda x: x != -1, t_nodes))
-                if len(t_nodes) != 0:
-                    topk = Counter(t_nodes).most_common(K)
-                    topk_node = [_[0] for _ in topk]
-                    topk_count = [_[1] for _ in topk]
-                    row_nodes[t_type].extend([s_node for _ in range(len(topk_node))])
-                    col_nodes[t_type].extend(topk_node)
-                    topk_counts[t_type].extend(topk_count / np.sum(topk_count))
+            k_cap = K[t_type] if isinstance(K, (list, tuple)) else K
+            if len(t_nodes) != 0:
+                topk_node, topk_count = select_neighbors_by_strategy(
+                    t_nodes, k_cap, strategy_eff, hybrid_ratio, temp)
+                row_nodes[t_type].extend([s_node for _ in range(len(topk_node))])
+                col_nodes[t_type].extend(topk_node)
+                topk_counts[t_type].extend(topk_count)
 
     for t_type in tnode_types:
         num_t = g.num_nodes(g.ntypes[t_type])
@@ -548,6 +611,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
     return sim_mitrix, list(tnode_types), int(s_type)
 
 def get_weights_sidx(sim_matrix, idx):
+    """取 sim_matrix 中与 idx 对应源节点相关的所有非零边，返回源索引、目标索引与权重。"""
     if torch.is_tensor(idx):
         idx = idx.detach().cpu().numpy().astype(np.int64, copy=False).ravel()
     sim_matrix = sim_matrix[idx]
@@ -557,6 +621,7 @@ def get_weights_sidx(sim_matrix, idx):
     return s_idx, t_idx, weights
 
 def get_model_need(n_metapaths, sim_matrixs, t_typess, batch):
+    """为当前 batch 在每个 meta-path、每种目标类型上拼接邻居索引与 RW 权重。"""
     s_idxs = []
     t_idxs = []
     weightss = []
@@ -574,7 +639,7 @@ def get_model_need(n_metapaths, sim_matrixs, t_typess, batch):
     return  s_idxs, t_idxs, weightss
 
 def graph2matrix(src, dst, matrix_temp):
-    """Convert dgl edge to adj"""
+    """将边列表转为稠密临时矩阵再输出 CSR 邻接（供辅助构图）。"""
     for i in range(len(src)):
         if src[i] != dst[i]:
             matrix_temp[src[i], dst[i]] = 1
@@ -586,6 +651,7 @@ def trans_sparse_matrix(D):
     return sp.csc_matrix((x[2], (x[1], x[0])), shape = (D.shape[1], D.shape[0]))
 
 def accuracy(output, labels, dataset):
+    """测试集 Macro-F1 / Micro-F1；Yelp 为多标签逐样本平均。"""
     if dataset == 'Yelp':
         macro_f1 = []
         micro_f1 = []

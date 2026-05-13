@@ -1,4 +1,4 @@
-# GitHub-Ready Checklist
+# GitHub 提交前检查清单
 
 提交前自查清单；符合「大数据与本地实验产物不进仓库」的常见开源实践。
 

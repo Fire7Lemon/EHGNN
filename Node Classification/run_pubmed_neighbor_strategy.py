@@ -1,7 +1,5 @@
-"""
-PubMed neighbor selection strategies: freq / random / hybrid / temp x seeds.
-Runs main.py subprocesses; copies pubmed_nc_result.txt per run; writes summary.csv and summary.txt.
-"""
+"""PubMed 邻居选择策略批量实验（freq / random / hybrid / temp）× 多种子；
+子进程调用 main.py，复制 pubmed_nc_result.txt，并写 summary.csv / summary.txt。"""
 import csv
 import os
 import shutil
@@ -16,7 +14,7 @@ OUT_DIR = os.path.join(RESULTS_ROOT, 'pubmed_neighbor_strategy')
 
 SEEDS = [42, 3407, 2026]
 
-# (strategy_display_name, file_tag, extra_argv)
+# (汇总表展示名, 结果文件 tag, 传给 main.py 的额外 CLI)
 CONFIGS = [
     ('freq', 'freq', ['--neighbor_strategy', 'freq']),
     ('random', 'random', ['--neighbor_strategy', 'random']),

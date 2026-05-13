@@ -1,4 +1,4 @@
-# Experiment Notes（PubMed Node Classification）
+# 实验记录笔记（PubMed 节点分类）
 
 以下内容摘自本机 **`Node Classification/results/`** 下已有汇总文件（2026-05 左右生成）。**仅代表 PubMed、当前默认训练设定与所列种子切片**；不向其它数据集或论文表格做强泛化推断。
 

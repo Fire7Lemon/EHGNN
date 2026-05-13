@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# MAG240M server pipeline: preflight -> conda -> data check -> training.
+# MAG240M 服务器流水线：预检查 → conda → 数据校验 → 训练。
 #
-# Usage:
+# 用法：
 #   export MAG240_DATA_ROOT="${HOME}/data"
 #   export MAG240M_CONDA_ENV="${MAG240M_CONDA_ENV:-ehgnn}"
 #   ./scripts/run_mag240m_server.sh
 #
-# Disk guard: requires >= 500 GB free on filesystem hosting MAG240_DATA_ROOT
-# unless MAG240_SKIP_DISK_CHECK=1 (not recommended).
+# 磁盘门禁：MAG240_DATA_ROOT 所在文件系统可用空间须 ≥ 500 GB，
+# 除非设置 MAG240_SKIP_DISK_CHECK=1（不推荐）。
 
 set -euo pipefail
 
@@ -39,7 +39,7 @@ echo "REPO_ROOT=${REPO_ROOT}"
 echo "MAG240_DATA_ROOT=${MAG240_DATA_ROOT}"
 echo "LOG_FILE=${LOG_FILE}"
 
-# --- Repo layout sanity (expects EHGNN repo root containing MAG240M/) ---
+# --- 仓库布局检查（需在含 MAG240M/ 的克隆根目录运行） ---
 if [[ ! -d "${MAG_DIR}" ]]; then
   echo "ERROR: MAG240M directory not found at ${MAG_DIR}"
   echo "       scripts/ must live next to MAG240M/ inside the cloned repository."
@@ -50,13 +50,13 @@ if [[ ! -f "${SCRIPT_DIR}/check_mag240m_data.py" ]]; then
   exit 1
 fi
 
-# --- conda ---
+# --- conda 环境 ---
 if ! command -v conda >/dev/null 2>&1; then
   echo "ERROR: conda not found in PATH"
   exit 1
 fi
 
-# --- Disk space (500 GB minimum recommended hard gate) ---
+# --- 磁盘空间（默认硬阈值 500 GB） ---
 echo ""
 echo "---- disk usage (df -h ${MAG240_DATA_ROOT}) ----"
 df -h "${MAG240_DATA_ROOT}"

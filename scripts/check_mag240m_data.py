@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verify OGB-LSC MAG240M under --root.
+"""校验 MAG240MDataset(root)：目录与字段可读性。
 
-WARNING: Calling MAG240MDataset(root=...) will trigger OGB download / preprocessing
-if the dataset is missing or incomplete under <root>/mag240m_kddcup2021/.
+警告：调用 MAG240MDataset(root=...) 会在数据缺失时触发 OGB 下载与预处理，
+耗时可达数小时至约一天（视磁盘与网络而定）。
 """
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ def _dir_exists_msg(path: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Sanity-check MAG240MDataset(root)')
+    parser = argparse.ArgumentParser(description='检查 MAG240MDataset(root) 是否可用')
     parser.add_argument(
         '--root',
         type=str,
         required=True,
-        help='Parent directory for MAG240MDataset (contains mag240m_kddcup2021/); supports ~/ expansion',
+        help='MAG240MDataset 父目录（内含 mag240m_kddcup2021/）；支持 ~/ 展开',
     )
     args = parser.parse_args()
     root = os.path.abspath(os.path.expanduser(args.root))

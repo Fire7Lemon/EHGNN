@@ -3,30 +3,30 @@ import torch
 import time
 from utils import load_DBLP, random_walk_sim, get_model_need, accuracy, neg_sample, load_PubMed
 from models import EHGNN
-import dask
+import dask  # 多进程并行计算各 meta-path 的 random_walk_sim
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='PubMed', help='dataset')
-    parser.add_argument('--path', type=str, default='../data/', help='path of dataset')
-    parser.add_argument('--is_normalize', action='store_true', help='Is row normalize for features')
-    parser.add_argument('--wo_l2', action='store_true', help='without l2 normalization of output')
-    parser.add_argument('--wo_mweight', action='store_true', help='without meta-path weight')
-    parser.add_argument('--wo_tweight', action='store_true', help='without node type weight')
-    parser.add_argument('--r_neighbor', action='store_true', help='random choice neighborhoods')
-    parser.add_argument('--K', type=int, default=20, help='Top K of similarity, number of neighbors per node')
-    parser.add_argument('--walk_num', type=int, default=40, help='number of meta-path random walk per node')
-    parser.add_argument('--hidden', type=int, default=512, help='hidden dimension of mlp layer')
-    parser.add_argument('--n_layers', type=int, default=5, help='number of mlp layers')
-    parser.add_argument('--dropout', type=float, default=0.4, help='dropout rate')
-    parser.add_argument('--eps', type=float, default=1e-5, help='eps of ppr')
-    parser.add_argument('--alpha', type=float, default=0.7, help='alpha of ppr')
-    parser.add_argument('--num_threads', type=int, default=40, help='number of threads for ppr random walk')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
-    parser.add_argument('--val_epochs', type=int, default=1, help='Number of epochs to valid')
-    parser.add_argument('--lr', type=float, default=0.0005, help='learning rate')
-    parser.add_argument('--batch_size', type=int, default=1000, help='batch size')
-    parser.add_argument('--gpu', type=int, default=0, help='number of device')
+    parser.add_argument('--dataset', type=str, default='PubMed', help='数据集：PubMed / DBLP')
+    parser.add_argument('--path', type=str, default='../data/', help='数据根路径')
+    parser.add_argument('--is_normalize', action='store_true', help='特征行归一化')
+    parser.add_argument('--wo_l2', action='store_true', help='关闭 L2 归一化')
+    parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 权重')
+    parser.add_argument('--wo_tweight', action='store_true', help='关闭类型权重')
+    parser.add_argument('--r_neighbor', action='store_true', help='RW 随机邻居')
+    parser.add_argument('--K', type=int, default=20, help='Top-K')
+    parser.add_argument('--walk_num', type=int, default=40, help='RW 次数')
+    parser.add_argument('--hidden', type=int, default=512, help='隐藏维度')
+    parser.add_argument('--n_layers', type=int, default=5, help='MLP 层数')
+    parser.add_argument('--dropout', type=float, default=0.4, help='Dropout')
+    parser.add_argument('--eps', type=float, default=1e-5, help='PPR eps（未用）')
+    parser.add_argument('--alpha', type=float, default=0.7, help='融合系数 α')
+    parser.add_argument('--num_threads', type=int, default=40, help='预留线程（未用）')
+    parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
+    parser.add_argument('--val_epochs', type=int, default=1, help='验证间隔（训练步）')
+    parser.add_argument('--lr', type=float, default=0.0005, help='学习率')
+    parser.add_argument('--batch_size', type=int, default=1000, help='批大小')
+    parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
     return parser.parse_args()
 
 metapaths_dblp = []

@@ -16,7 +16,7 @@ class EHGNN_MLP(torch.nn.Module):
         self.epsilon = torch.FloatTensor([1e-12])
 
     def l2_norm(self, x, device):
-        # This is an equivalent replacement for tf.l2_normalize, see https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/l2_normalize for more information.
+        # 等价于 TensorFlow tf.l2_normalize，逐行单位化
         return x / (torch.max(torch.norm(x, dim=1, keepdim=True), self.epsilon.to(device)))
 
     def forward(self, x, device):
@@ -42,7 +42,7 @@ class EHGNN(torch.nn.Module):
         self.mlp = EHGNN_MLP(in_feat, hidden, out_feat, n_layer, wo_l2, dropout)
 
     def forward(self, X, s_features, s_idxs, t_idxs, weightss, t_typess, batch_size, device):
-        # print(self.ntype_weights)
+        # 调试：print(self.ntype_weights)
         out = torch.zeros((batch_size, self.out_feat)).to(device)
 
         if self.wo_mweight:
@@ -80,7 +80,7 @@ class EHGNN_yelp(torch.nn.Module):
         self.mlp = EHGNN_MLP(in_feat, hidden, out_feat, n_layer, wo_l2, dropout)
 
     def forward(self, X, s_features, s_idxs, t_idxs, weightss, t_typess, weight_type, batch_size, device):
-        # print(self.ntype_weights)
+        # 两套 meta-path / 类型权重切片，由 weight_type 选择 business 侧或 phrase 侧
         out = torch.zeros((batch_size, self.out_feat)).to(device)
         nm_per = int(self.metapath_weights.shape[0]/2)
         nt_per = int(self.ntype_weights.shape[0]/2)

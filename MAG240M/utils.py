@@ -10,6 +10,7 @@ from sklearn.metrics import f1_score
 import random
 
 def load_240m(graph_path):
+    """从 OGB MAG240MDataset 加载异质图与论文节点标签、train/valid 划分。"""
     graph_path = os.path.abspath(os.path.expanduser(graph_path))
     print("Load Data")
     dataset = MAG240MDataset(root=graph_path)
@@ -32,12 +33,12 @@ def load_240m(graph_path):
     ei_affiliated = None
 
     split_dict = dataset.get_idx_split()
-    train_nid = split_dict['train']  # numpy array storing indices of training paper nodes
-    valid_nid = split_dict['valid']  # numpy array storing indices of validation paper nodes
-    # test_idx = split_dict['test'] not provided
+    train_nid = split_dict['train']  # 训练论文节点索引（numpy）
+    valid_nid = split_dict['valid']  # 验证论文节点索引（numpy）
+    # split_dict['test'] 官方未必提供，此处未使用
     print("Train, Valid Number", len(train_nid) + len(valid_nid))
 
-    ## generate sparse adjacency matrix for different relation
+    ## 为不同关系类型生成稀疏邻接（此处保留变量准备后续扩展）
     paper_num = dataset.num_papers
     author_num = dataset.num_authors
     institution_num = dataset.num_institutions
@@ -49,6 +50,7 @@ def load_240m(graph_path):
     return g, labels.unsqueeze(1), idx_train, idx_val
 
 def get_need_nodes(matrixs, ttypes_num, ttypess):
+    """从各 meta-path 稀疏矩阵中收集涉及到的作者 / 机构 / 论文全局 id。"""
     related_nodes = []
     for i in range(ttypes_num):
         related_nodes.append([])
@@ -57,7 +59,7 @@ def get_need_nodes(matrixs, ttypes_num, ttypess):
         types = ttypess[i]
         matrix = matrixs[i]
         for type in types:
-            # print(matrix[type])
+            # 调试：print(matrix[type])
             need_node = list(matrix[type].indices)
             related_nodes[type].extend(need_node)
 
@@ -67,6 +69,7 @@ def get_need_nodes(matrixs, ttypes_num, ttypess):
     return related_nodes
 
 def load_features(related_nodes, paper_path, other_path, is_normalize):
+    """mmap 读取大规模特征，随机投影扩展维度，并构建全局 id→batch 内行号的 features_map。"""
     author_num = 122383112
     institution_num = 25721
     paper_num = 121751666
@@ -74,7 +77,7 @@ def load_features(related_nodes, paper_path, other_path, is_normalize):
     institution_file = 'institution.npy'
     paper_file = 'node_feat.npy'
 
-    ## ['author', 'institution', 'paper']
+    ## features / features_map 下标：0 author，1 institution，2 paper
     features = {}
     features_map = {}
     features_map[0] = torch.zeros(author_num, dtype=torch.long) - 1
@@ -85,13 +88,13 @@ def load_features(related_nodes, paper_path, other_path, is_normalize):
         related_node = np.array(related_nodes[i])
         features[i] = torch.FloatTensor(len(related_node), 768).half()
         if i == 0 or i == 1:
-            if i == 0: ## author
+            if i == 0:  # 作者特征 mmap + 随机线性扩展到 768 维
                 print('Prepare Author')
                 feature_temp = np.memmap(filename=other_path + author_file,
                                          mode='r',
                                          dtype=np.float16,
                                          shape=(author_num, 128))
-            elif i == 1: ## institution
+            elif i == 1:  # 机构特征
                 print('Prepare Institution')
                 feature_temp = np.memmap(filename=other_path + institution_file,
                                          mode='r',
@@ -101,7 +104,7 @@ def load_features(related_nodes, paper_path, other_path, is_normalize):
             rand_weight = torch.Tensor(128, 768).uniform_(-0.5, 0.5)
             feature_temp = torch.matmul(torch.FloatTensor(feature_temp[related_node]), rand_weight)
             features[i] = feature_temp.half()
-        elif i == 2: ## paper
+        elif i == 2:  # 论文 RoBERTa 768 维特征
             print('Prepare Paper')
             feature_temp = np.memmap(filename=paper_path + paper_file,
                                      mode='r',
@@ -117,6 +120,7 @@ def load_features(related_nodes, paper_path, other_path, is_normalize):
     return features, features_map
 
 def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
+    """与 NC 类似，但 K 可为 list：按类型分别截断 Top-K 邻居。"""
     if torch.is_tensor(batch_idx):
         nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
     else:
@@ -125,7 +129,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
     walks, types = dgl.sampling.random_walk(g=g, nodes=nodes_list, metapath=metapath)
     s_type = types[0]
     num_s = g.num_nodes(g.ntypes[s_type])
-    tnode_types = set(types[1:].tolist()) # remove source node type
+    tnode_types = set(types[1:].tolist())  # 去掉游走起点类型
     row_nodes = {}
     col_nodes = {}
     topk_counts = {}
@@ -143,7 +147,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
                 t_indexs = torch.nonzero(types == t_type)
 
                 if t_type == types[0]:
-                    ## delete source node:
+                    # 同源类型时跳过序列首位置，避免源点作邻居
                     t_indexs = t_indexs[1:]
 
                 t_nodes = []
@@ -169,7 +173,7 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
                 t_indexs = torch.nonzero(types == t_type)
 
                 if t_type == types[0]:
-                    ## delete source node:
+                    # 同源类型时跳过序列首位置，避免源点作邻居
                     t_indexs = t_indexs[1:]
 
                 t_nodes = []
