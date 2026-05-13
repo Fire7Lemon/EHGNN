@@ -1,16 +1,22 @@
-"""PubMed hybrid_ratio 扫描：基线 freq/random + hybrid ratio 0.0~1.0 × 多种子，汇总 summary。"""
+"""PubMed hybrid_ratio 扫描：基线 freq/random + hybrid ratio 网格 × 多种子，汇总 summary。
+
+hybrid_ratio=1.0 不纳入扫描（见 summary.txt 说明）。
+"""
 import csv
 import os
 import shutil
 import subprocess
 import sys
 
+import numpy as np
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_ROOT = os.path.join(SCRIPT_DIR, 'results')
 OUT_DIR = os.path.join(RESULTS_ROOT, 'pubmed_hybrid_ratio_sweep')
 
 SEEDS = [42, 3407, 2026]
-HYBRID_RATIOS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+# 不包含 1.0：与 freq baseline 几乎等价且 freq 已单独跑；Windows 上 ratio=1.0 曾出现 exit 3221226505。
+HYBRID_RATIOS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 # (method, ratio 展示用, 保存文件名 tag, main.py 额外参数)
 CONFIGS = [('freq', '-', 'freq', ['--neighbor_strategy', 'freq'])]
@@ -33,6 +39,28 @@ def parse_kv_txt(path):
     return out
 
 
+def _run_subprocess(cmd):
+    """Windows-safe UTF-8 decode for captured child stdout/stderr."""
+    return subprocess.run(
+        cmd,
+        cwd=SCRIPT_DIR,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+    )
+
+
+def _fail_process(proc, cmd):
+    print('[FAIL] return_code={}'.format(proc.returncode), file=sys.stderr, flush=True)
+    print('[FAIL] command:', ' '.join(cmd), file=sys.stderr, flush=True)
+    print('[FAIL] --- stdout ---', file=sys.stderr, flush=True)
+    print(proc.stdout or '(empty)', file=sys.stderr, flush=True)
+    print('[FAIL] --- stderr ---', file=sys.stderr, flush=True)
+    print(proc.stderr or '(empty)', file=sys.stderr, flush=True)
+    sys.exit(proc.returncode if proc.returncode != 0 else 1)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     rows = []
@@ -41,28 +69,21 @@ def main():
     for method, ratio_disp, tag, extra in CONFIGS:
         for seed in SEEDS:
             cmd = base_cmd + ['--seed', str(seed)] + extra
-            print('\n>>> {}'.format(' '.join(cmd)), flush=True)
-            proc = subprocess.run(
-                cmd,
-                cwd=SCRIPT_DIR,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-            )
+            print('[RUN] method={} ratio={} seed={}'.format(method, ratio_disp, seed), flush=True)
+            print('[RUN] cmd={}'.format(' '.join(cmd)), flush=True)
+            proc = _run_subprocess(cmd)
             if proc.returncode != 0:
-                print('命令失败 (exit {}):'.format(proc.returncode), file=sys.stderr)
-                print(' '.join(cmd), file=sys.stderr)
-                if proc.stdout:
-                    print(proc.stdout, file=sys.stderr)
-                if proc.stderr:
-                    print(proc.stderr, file=sys.stderr)
-                sys.exit(proc.returncode)
+                _fail_process(proc, cmd)
 
             src = os.path.join(RESULTS_ROOT, 'pubmed_nc_result.txt')
             if not os.path.isfile(src):
-                print('缺少结果文件: {}'.format(src), file=sys.stderr)
-                print('命令: {}'.format(' '.join(cmd)), file=sys.stderr)
+                print('[FAIL] missing result file after subprocess:', src, file=sys.stderr, flush=True)
+                print('[FAIL] return_code={}'.format(proc.returncode), file=sys.stderr, flush=True)
+                print('[FAIL] command:', ' '.join(cmd), file=sys.stderr, flush=True)
+                print('[FAIL] --- stdout ---', file=sys.stderr, flush=True)
+                print(proc.stdout or '(empty)', file=sys.stderr, flush=True)
+                print('[FAIL] --- stderr ---', file=sys.stderr, flush=True)
+                print(proc.stderr or '(empty)', file=sys.stderr, flush=True)
                 sys.exit(1)
 
             dst = os.path.join(OUT_DIR, '{}_seed_{}.txt'.format(tag, seed))
@@ -130,9 +151,22 @@ def main():
     else:
         slope = float('nan')
 
+    ratio_higher_worse = (
+        '是（线性斜率为负，ratio 升高时 Macro 均值总体下降）'
+        if not np.isnan(slope) and slope < -1e-6
+        else ('否或不明确（斜率接近 0 或为正）' if not np.isnan(slope) else '样本不足无法判断'))
+
+    suggest_dblp = (
+        '是：PubMed 仅为当前口径下单数据集快照，建议在 DBLP 复测以防特例、对齐论文设定。')
+
     summary_txt_path = os.path.join(OUT_DIR, 'summary.txt')
     lines = [
         'PubMed hybrid_ratio sweep (seeds: {})'.format(SEEDS),
+        '',
+        '关于 hybrid_ratio=1.0（未扫描）：',
+        '  - 已跳过 ratio=1.0：其行为接近 freq / Top-K baseline；freq 已作为独立 baseline 运行。',
+        '  - Windows 环境下 ratio=1.0 曾出现底层进程异常退出（exit 3221226505），为避免不稳定不再强行扫描。',
+        '',
         'Baseline freq Macro mean: {:.4f}, Micro mean: {:.4f}'.format(freq_macro, freq_micro),
         '',
         '| Method | Ratio | Macro-F1 | Micro-F1 | ΔMacro vs freq | ΔMicro vs freq |',
@@ -148,18 +182,20 @@ def main():
 
     lines.extend([
         '--- 结论 ---',
-        '按 mean Macro-F1 排序如上；表中第一行为全局最优配置。',
-        '最优 hybrid_ratio（仅在 hybrid 策略内比较）: {}  (Macro {:.4f} ± ..., Micro {:.4f} ± ...)'.format(
-            best_hybrid['ratio'], best_hybrid['macro_mean'], best_hybrid['micro_mean']),
-        '最优 hybrid 是否超过 freq（Macro 均值）: {}'.format('是' if best_hybrid['macro_mean'] > freq_macro else '否'),
-        '最优 hybrid 是否超过 random（Macro 均值）: {}'.format('是' if best_hybrid['macro_mean'] > rnd_macro else '否'),
-        'hybrid 扫描段上 Macro 对 ratio 的一阶线性斜率（越大表示随 ratio 升高 Macro 越高）: {:.6f}'.format(slope),
-        '是否存在「ratio 越高反而越差」的整体趋势: {}'.format(
-            '倾向存在（斜率为负，ratio 升高 Macro 总体下降）' if not np.isnan(slope) and slope < -1e-6
-            else ('不明显或斜率接近 0 / 为正' if not np.isnan(slope) else '样本不足无法判断')),
+        '1. 最优 hybrid_ratio（仅在 hybrid 配置内，按 Macro 均值）: {}  (Macro {:.4f} ± {:.4f}, Micro {:.4f} ± {:.4f})'.format(
+            best_hybrid['ratio'],
+            best_hybrid['macro_mean'], best_hybrid['macro_std'],
+            best_hybrid['micro_mean'], best_hybrid['micro_std']),
+        '2. 最优 hybrid 是否超过 freq（Macro 均值）: {}'.format(
+            '是' if best_hybrid['macro_mean'] > freq_macro else '否'),
+        '3. 最优 hybrid 是否超过 random（Macro 均值）: {}'.format(
+            '是' if best_hybrid['macro_mean'] > rnd_macro else '否'),
+        '4. 是否观察到「ratio 越高越差」的整体趋势: {}'.format(ratio_higher_worse),
+        '   （hybrid 段 Macro 对 ratio 的一阶线性斜率: {:.6f}；正值表示随 ratio 升高 Macro 倾向升高）'.format(slope),
+        '5. 是否建议继续在 DBLP 验证: {}'.format(suggest_dblp),
         '',
-        '简短解释: hybrid_ratio 控制 Top-K 频次槽与随机槽占比；若最优 ratio 靠近 0 则随机多样性更重要，',
-        '靠近 1 则频次邻居更重要。freq/random 两行可与 hybrid 曲线对照；建议在 DBLP 上复测以防 PubMed 特例。',
+        '表中按 mean Macro-F1 全局排序；前两行为 freq/random 基线，可与 hybrid 曲线对照。',
+        '简短解释: hybrid_ratio 控制 Top-K 中频次槽与随机槽占比；最优 ratio 靠近 0 则更依赖随机多样性，靠近 1 则更依赖频次邻居。',
     ])
 
     text = '\n'.join(lines) + '\n'
