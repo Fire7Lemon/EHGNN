@@ -7,7 +7,7 @@ from sklearn.metrics import f1_score
 import random
 
 """
-数据加载 + random walk + 邻居选择 + 构造模型输入
+数据加载 + meta-path random walk + 频次 Top-K（或 --r_neighbor 随机消融）+ 构造模型输入
 """
 
 
@@ -488,89 +488,34 @@ def load_dblp(data_path, data_name, is_normalize):
         test_idx)
 
 
-def select_neighbors_by_strategy(t_nodes, K, strategy, hybrid_ratio, temp):
-    """由 RW 终点多重集选出至多 K 个邻居及归一化权重（非负、和为 1）。"""
+def _pick_neighbors_from_rw_multiset(t_nodes, k_cap, random_flag):
+    """RW 终点多重集 → 至多 k_cap 个邻居及归一化权重：默认 Counter.most_common；random_flag 为随机消融。"""
     t_nodes = [int(x) for x in t_nodes if x != -1]
     if len(t_nodes) == 0:
         return [], []
-
-    if strategy == 'random':
-        # 与旧版 --r_neighbor 一致：在多重集上 random.sample（允许同一节点 id 出现多次时被多次抽到）
-        if len(t_nodes) <= K:
+    if random_flag:
+        if len(t_nodes) <= k_cap:
             picked = t_nodes
         else:
-            picked = random.sample(t_nodes, K)
+            picked = random.sample(t_nodes, k_cap)
         w = np.ones(len(picked), dtype=float)
         w = w / w.sum()
         return picked, w.tolist()
-
     ctr = Counter(t_nodes)
-
-    if strategy == 'freq':
-        if len(t_nodes) <= K:
-            topk = ctr.most_common()
-        else:
-            topk = ctr.most_common(K)
-        topk_node = [int(_[0]) for _ in topk]
-        topk_c = np.array([float(_[1]) for _ in topk], dtype=float)
-        s = float(topk_c.sum())
-        if s <= 0:
-            raise ValueError('select_neighbors_by_strategy(freq): zero sum counts')
-        return topk_node, (topk_c / s).tolist()
-
-    if strategy == 'hybrid':
-        if not (0.0 <= hybrid_ratio <= 1.0):
-            raise ValueError('hybrid_ratio must be in [0, 1]')
-        uniq_ordered = [int(n) for n, _ in ctr.most_common()]
-        if len(uniq_ordered) <= K:
-            topk_node = uniq_ordered
-            topk_c = np.array([float(ctr[n]) for n in topk_node], dtype=float)
-            s = float(topk_c.sum())
-            if s <= 0:
-                raise ValueError('select_neighbors_by_strategy(hybrid): zero sum counts')
-            return topk_node, (topk_c / s).tolist()
-
-        top_num = int(K * hybrid_ratio)
-        top_num = max(0, min(top_num, K))
-        top_pick = uniq_ordered[:top_num]
-        remainder = uniq_ordered[top_num:]
-        rand_slots = K - top_num
-        extra = []
-        if rand_slots > 0 and len(remainder) > 0:
-            take = min(rand_slots, len(remainder))
-            extra = random.sample(remainder, take)
-        selected = top_pick + extra
-        topk_c = np.array([float(ctr[n]) for n in selected], dtype=float)
-        s = float(topk_c.sum())
-        if s <= 0:
-            topk_c = np.ones(len(selected), dtype=float)
-            s = float(topk_c.sum())
-        return selected, (topk_c / s).tolist()
-
-    if strategy == 'temp':
-        if temp <= 0:
-            raise ValueError('temp must be > 0')
-        nodes_list_u = [int(n) for n in ctr.keys()]
-        counts = np.array([float(ctr[n]) for n in nodes_list_u], dtype=float)
-        logits = np.power(counts, 1.0 / float(temp))
-        s = float(logits.sum())
-        if s <= 0 or not np.isfinite(s):
-            logits = np.ones_like(logits)
-            s = float(logits.sum())
-        p = logits / s
-        k_take = min(K, len(nodes_list_u))
-        idx = np.random.choice(len(nodes_list_u), size=k_take, replace=False, p=p)
-        picked = [nodes_list_u[int(i)] for i in idx]
-        sel_p = p[idx].astype(float)
-        sel_p = sel_p / sel_p.sum()
-        return picked, sel_p.tolist()
-
-    raise ValueError('unknown neighbor strategy: {}'.format(strategy))
+    if len(t_nodes) <= k_cap:
+        topk = ctr.most_common()
+    else:
+        topk = ctr.most_common(k_cap)
+    topk_node = [int(_[0]) for _ in topk]
+    topk_c = np.array([float(_[1]) for _ in topk], dtype=float)
+    s = float(topk_c.sum())
+    if s <= 0:
+        raise ValueError('random_walk_sim(freq): zero sum counts')
+    return topk_node, (topk_c / s).tolist()
 
 
-def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
-                    neighbor_strategy='freq', hybrid_ratio=0.8, temp=1.0):
-    """对 batch 源节点做随机游走，再按策略选 Top-K 邻居，写出 CSR 相似矩阵。"""
+def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
+    """对 batch 源节点做 meta-path RW；默认频次 Top-K；random_flag 时随机 Top-K。写出 CSR 相似矩阵。"""
     if torch.is_tensor(batch_idx):
         nodes_list = batch_idx.detach().cpu().numpy().astype(np.int64).ravel().tolist()
         n_batch = int(batch_idx.shape[0])
@@ -592,8 +537,6 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
         col_nodes[t_type] = []
         topk_counts[t_type] = []
 
-    strategy_eff = 'random' if random_flag else neighbor_strategy
-
     for i in range(n_batch):
         s_node = int(walks[i * num_per_node, 0])
         for t_type in tnode_types:
@@ -610,8 +553,8 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag,
 
             k_cap = K[t_type] if isinstance(K, (list, tuple)) else K
             if len(t_nodes) != 0:
-                topk_node, topk_count = select_neighbors_by_strategy(
-                    t_nodes, k_cap, strategy_eff, hybrid_ratio, temp)
+                topk_node, topk_count = _pick_neighbors_from_rw_multiset(
+                    t_nodes, k_cap, random_flag)
                 row_nodes[t_type].extend([s_node for _ in range(len(topk_node))])
                 col_nodes[t_type].extend(topk_node)
                 topk_counts[t_type].extend(topk_count)

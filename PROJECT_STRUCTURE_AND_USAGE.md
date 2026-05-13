@@ -1,5 +1,8 @@
 # EHGNN 项目结构与使用说明
 
+**当前文档默认对应 Git 分支：`reproduce-baseline`。**  
+该分支仅保留论文复现与 PubMed 批量脚本（5-seed、消融）；**不包含** `neighbor_strategy` / hybrid / temp 等邻居策略扩展（见分支 **`neighbor-strategy-dev`**）。
+
 文档依据当前仓库布局整理（路径相对于仓库根目录 `EHGNN/`）。运行命令前请将工作目录切换到对应子项目。
 
 ---
@@ -25,7 +28,6 @@ EHGNN/
 │   ├── utils.py
 │   ├── run_pubmed_5seeds.py
 │   ├── run_pubmed_ablation.py
-│   ├── run_pubmed_neighbor_strategy.py
 │   └── results/              # PubMed 实验产出（默认不提交 Git）
 ├── Link Prediction/
 │   ├── main.py
@@ -53,7 +55,7 @@ EHGNN/
 | **MAG240M** | OGB-LSC MAG240M 大规模节点分类；数据根目录语义见 `README_MAG240M.md`（`mag240m_kddcup2021/`）。 |
 | **scripts** | MAG240M：数据校验脚本与 Linux 一键启动脚本。 |
 | **data** | 论文三组数据（PubMed / DBLP / Yelp）及可选 MAG240M 父目录（本地放置）。 |
-| **Node Classification/results** | PubMed：单次结果快照、5-seed、消融、邻居策略汇总与各次运行副本。 |
+| **Node Classification/results** | PubMed：单次结果快照、5-seed、消融与各次运行副本；若本地仍留有历史目录 `pubmed_neighbor_strategy/` 等，为优化分支实验产物，非本分支脚本生成。 |
 
 ---
 
@@ -86,9 +88,8 @@ python main.py --dataset DBLP --path ../data/ --seed 42
 | 单次 PubMed NC | `python main.py --dataset PubMed --seed <seed>` |
 | 5-seed | `python run_pubmed_5seeds.py` |
 | 消融 | `python run_pubmed_ablation.py` |
-| Neighbor strategy sweep | `python run_pubmed_neighbor_strategy.py` |
 
-邻居策略相关 CLI（仅 `main.py`）：`--neighbor_strategy {freq,random,hybrid,temp}`、`--hybrid_ratio`、`--temp`；`--r_neighbor` 会强制等价于 random（详见代码注释）。
+`main.py` 默认 RW 后为 **`Counter.most_common(K)` 频次 Top-K**（论文口径）；`--r_neighbor` 为 **随机邻居消融**，不参与额外策略开关。
 
 ---
 
@@ -133,7 +134,8 @@ python scripts/check_mag240m_data.py --root /path/to/parent
 | `pubmed_nc_result.txt` | 最近一次 PubMed 运行的指标快照（会被下一次 PubMed 运行覆盖）。 |
 | `pubmed_5seeds/` | 五种子运行副本、`pubmed_5seeds_summary.csv`、`pubmed_5seeds_summary.txt`。 |
 | `pubmed_ablation/` | 消融各配置 × seed 的 txt、`summary.csv`、`summary.txt`。 |
-| `pubmed_neighbor_strategy/` | 邻居策略 × seed 的 txt、`summary.csv`、`summary.txt`。 |
+
+（历史目录如 `pubmed_neighbor_strategy/`、`pubmed_hybrid_ratio_sweep/` 若仍存在，来自 **`neighbor-strategy-dev`** 实验，本分支不再提供对应脚本。）
 
 ---
 
@@ -146,7 +148,7 @@ flowchart TD
   B -->|DBLP| D[load_dblp]
   C --> E[对每个 metapath 调用 random_walk_sim]
   D --> E
-  E --> F[select_neighbors_by_strategy 可选策略]
+  E --> F[频次 Top-K 或 --r_neighbor 随机消融]
   F --> G[组装稀疏相似矩阵]
   G --> H[构建 EHGNN 与优化器]
   H --> I[训练循环: get_model_need -> EHGNN.forward -> NLLLoss]
@@ -160,7 +162,7 @@ flowchart TD
 
 ---
 
-## 9. 已知文档层记录（非本轮修改代码）
+## 9. 已知文档层记录
 
 - **`Link Prediction`** 与 **`MAG240M`** 的入口参数、默认超参与 **`Node Classification/main.py`** 不一致，需各自查看对应 `parse_args()`。  
-- **`neighbor_strategy` 等扩展** 存在于 **`Node Classification/utils.py`**；未自动同步到 `MAG240M/utils.py`。
+- **`reproduce-baseline`**：`Node Classification/utils.random_walk_sim` 仅频次 Top-K 与 `--r_neighbor`；扩展邻居策略仅在 **`neighbor-strategy-dev`**。

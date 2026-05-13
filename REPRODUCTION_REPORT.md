@@ -1,5 +1,7 @@
 # 复现报告 — EHGNN
 
+**Git 分支：`reproduce-baseline`。** 节点分类入口 **`Node Classification/main.py`** 仅保留论文口径：**RW 后为频次 Top-K**（`Counter.most_common(K)`）与 **`--r_neighbor` 随机邻居消融**。邻居策略扩展实验代码与脚本见 **`neighbor-strategy-dev`**。
+
 ---
 
 ## 1. 论文名称
@@ -10,9 +12,10 @@
 
 ## 2. 复现目标
 
-- 在 **PubMed 节点分类** 任务上，按 `README.md` 给出的默认超参运行 **`Node Classification/main.py`**，并记录测试集 Macro-F1 / Micro-F1。  
-- 扩展实验：**多 seed、消融、RW 邻居选择策略（freq / random / hybrid / temp）**，结果保存在本地 `results/`（默认不提交 Git，数值见 **`EXPERIMENT_NOTES.md`**）。  
-- **MAG240M**：补充服务器侧部署说明（`README_MAG240M.md`、`scripts/`），便于在具备磁盘与内存的环境拉起训练。
+- 在 **PubMed 节点分类** 任务上，按 `README.md` 给出的默认超参运行 **`Node Classification/main.py`**（默认 RW 后 **频次 Top-K**），并记录测试集 Macro-F1 / Micro-F1。  
+- 扩展实验（本分支）：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（含 `--r_neighbor` 随机邻居条目，`run_pubmed_ablation.py`）；数值见 **`EXPERIMENT_NOTES.md`** 与本地 `results/`。  
+- **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）。  
+- **不在本分支**：hybrid / temp / `neighbor_strategy` 扫描；相关内容仅在 **`neighbor-strategy-dev`** 与 **`EXPERIMENT_NOTES.md`** 历史小节。
 
 ---
 
@@ -51,7 +54,7 @@ cd Node Classification
 python main.py --dataset PubMed --path ../data/ --seed 42
 ```
 
-4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`、`run_pubmed_neighbor_strategy.py`（见 **`PROJECT_STRUCTURE_AND_USAGE.md`**）。
+4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`（见 **`PROJECT_STRUCTURE_AND_USAGE.md`**）。
 
 ---
 
@@ -62,8 +65,8 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 | 实验 | 要点 |
 |------|------|
 | 5-seed | `best_test_macro` mean ± std ≈ **0.6199 ± 0.0315**（5 个 seed） |
-| 消融（3 seeds） | Full EHGNN Macro ≈ **0.6032 ± 0.0107**；Random Neighbor Macro ≈ **0.6227 ± 0.0099** |
-| Neighbor sweep（3 seeds） | freq mean Macro ≈ **0.6019**；random ≈ **0.6107** |
+| 消融（3 seeds） | Full EHGNN Macro ≈ **0.6032 ± 0.0107**；Random Neighbor（`--r_neighbor`）Macro ≈ **0.6227 ± 0.0099** |
+| 优化分支历史 sweep | 见 **`EXPERIMENT_NOTES.md`** §4（`neighbor-strategy-dev`，非本分支可运行脚本） |
 
 ---
 
@@ -71,7 +74,7 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 
 - 根目录 **`README.md`** **未嵌入** PubMed 等指标的具体数值表，仅给出超参建议。  
 - **定量对比**需要对照论文 PDF / 官方补充材料中的表格，并注意：划分、预处理、随机种子、评测脚本是否与本文仓库 **完全一致**。  
-- 本仓库在 PubMed 上额外观察到 **Random / 非纯频次邻居** 可能优于 **freq Top-K**（见 **`EXPERIMENT_NOTES.md`**），属于 **复现过程中的扩展发现**，**不等于论文原文结论的重述**。
+- 消融中 **`--r_neighbor`** 相对默认频次 Top-K 的提升及优化分支下的 sweep 数值，见 **`EXPERIMENT_NOTES.md`**；**不等于论文原文对默认方法的结论重述**。
 
 ---
 
@@ -95,7 +98,7 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 | 项目 | 说明 |
 |------|------|
 | MAG240M | **完整训练 / 全量数据**依赖大规模磁盘与内存；本仓库以文档与脚本支持为主，**是否在目标机器完成端到端训练需单独确认** |
-| DBLP / Yelp | **未完成与 PubMed 同规格的邻居策略对比验证** |
+| DBLP / Yelp | **未完成与 PubMed 同规格的系统化扩展对比**（本分支亦无 hybrid/temp CLI） |
 | Link Prediction | 未在本报告中汇总系统化指标 |
 | 论文逐项对齐 | 若课程或审稿要求严格对齐，需逐项核对论文附录中的实现细节与评测协议 |
 
@@ -104,4 +107,4 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 ## 10. 文档与代码变更边界
 
 - **`REPRODUCTION_REPORT.md`、`EXPERIMENT_NOTES.md`、`PROJECT_STRUCTURE_AND_USAGE.md`、`GITHUB_READY_CHECKLIST.md`**：面向提交与老师阅读的说明材料。  
-- **本轮文档撰写不改变训练逻辑**；若发现 CLI 与代码不一致等问题，仅在本报告 **`PROJECT_STRUCTURE_AND_USAGE.md`** 等处文字记录，**不在此轮修改 Python**。
+- **`reproduce-baseline`**：`Node Classification/main.py` 与 **`utils.py`** 以论文默认 RW–频次 Top-K 为准；模型 **`models.py`** 结构保持不变。邻居策略扩展仅在 **`neighbor-strategy-dev`**。

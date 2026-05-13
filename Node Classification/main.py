@@ -19,14 +19,7 @@ def parse_args():
     parser.add_argument('--wo_l2', action='store_true', help='关闭 MLP（Multi-Layer Perceptron，多层感知机）输出的 L2 归一化')
     parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 可学习权重（MWeight），改为均匀权重')
     parser.add_argument('--wo_tweight', action='store_true', help='关闭目标节点类型可学习权重（TWeight），改为均匀权重')
-    parser.add_argument('--r_neighbor', action='store_true', help='RW 后对邻居随机采样 Top-K，而非按出现频次')
-    parser.add_argument('--neighbor_strategy', type=str, default='freq',
-                        choices=['freq', 'random', 'hybrid', 'temp'],
-                        help='邻居选择：freq=频次 Top-K（默认）；random/hybrid/temp 见 select_neighbors_by_strategy')
-    parser.add_argument('--hybrid_ratio', type=float, default=0.8,
-                        help='hybrid：高频槽占比 int(K*ratio)，其余槽从剩余唯一候选随机')
-    parser.add_argument('--temp', type=float, default=1.0,
-                        help='temp：p_i ∝ count_i^(1/temp)，无放回采样至多 K 个')
+    parser.add_argument('--r_neighbor', action='store_true', help='RW 后对邻居随机采样 Top-K（消融）；默认按频次 Counter.most_common(K)')
     parser.add_argument('--K', type=int, default=20, help='每个源节点保留的相似邻居数量上限（Top-K）')
     parser.add_argument('--walk_num', type=int, default=40, help='每个节点沿 meta-path 执行的随机游走次数')
     parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏层维度')
@@ -62,11 +55,6 @@ metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
 
 if __name__ == '__main__':
     args = parse_args()
-    if not (0.0 <= args.hybrid_ratio <= 1.0):
-        raise ValueError('hybrid_ratio must be in [0, 1], got {}'.format(args.hybrid_ratio))
-    if args.temp <= 0:
-        raise ValueError('temp must be > 0, got {}'.format(args.temp))
-    neighbor_effective = 'random' if args.r_neighbor else args.neighbor_strategy
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -96,11 +84,9 @@ if __name__ == '__main__':
     t_typess = []
     for metapath in metapaths:
         train_matrix, t_types, s_type = random_walk_sim(
-            idx_train, g, metapath, args.walk_num, args.K, args.r_neighbor,
-            neighbor_strategy=args.neighbor_strategy, hybrid_ratio=args.hybrid_ratio, temp=args.temp)
+            idx_train, g, metapath, args.walk_num, args.K, args.r_neighbor)
         test_matrix, _, _ = random_walk_sim(
-            idx_test, g, metapath, args.walk_num, args.K, args.r_neighbor,
-            neighbor_strategy=args.neighbor_strategy, hybrid_ratio=args.hybrid_ratio, temp=args.temp)
+            idx_test, g, metapath, args.walk_num, args.K, args.r_neighbor)
         train_matrixs.append(train_matrix)
         test_matrixs.append(test_matrix)
         t_typess.append(t_types)
@@ -216,9 +202,6 @@ if __name__ == '__main__':
         out_path = os.path.join(results_dir, 'pubmed_nc_result.txt')
         lines = [
             'seed={}'.format(args.seed),
-            'neighbor_strategy={}'.format(neighbor_effective),
-            'hybrid_ratio={}'.format(args.hybrid_ratio),
-            'temp={}'.format(args.temp),
             'best_test_macro={}'.format(best_test_macro),
             'best_test_micro={}'.format(best_test_micro),
             'best_epoch={}'.format(best_epoch),
