@@ -1,8 +1,8 @@
-# 实验记录笔记（PubMed 节点分类）
+# 实验记录笔记（PubMed / DBLP 等节点分类）
 
 **分支：`reproduce-baseline`。** 本节描述的 **`main.py` 默认行为**为 RW 后 **`Counter.most_common(K)` 频次 Top-K**；**不包含** `neighbor_strategy` / hybrid / temp 等 CLI。**邻居策略相关脚本与代码均在分支 `neighbor-strategy-dev`。**
 
-以下内容摘自本机 **`Node Classification/results/`** 下已有汇总文件（2026-05 左右生成）。**仅代表 PubMed、当前默认训练设定与所列种子切片**；不向其它数据集或论文表格做强泛化推断。
+以下内容摘自本机 **`Node Classification/results/`** 下已有汇总文件（2026-05 左右及后续补充）。**仅代表各节所列数据集、默认或 README 对齐设定与所列种子切片**；不向其它数据集或论文表格做强泛化推断。
 
 ---
 
@@ -37,7 +37,28 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 3. 消融实验（3 seeds: 42, 3407, 2026）
+## 3. DBLP Node Classification baseline（selected 3 seeds，初步复现）
+
+**分支：`reproduce-baseline`**；**不包含** `neighbor_strategy` / hybrid / temp 等优化 CLI。
+
+来源：`results/dblp_5seeds/summary.txt`。**本次汇总的 seeds = [42, 3407, 2026]**（n=3，std ddof=1）。这是 **selected 3-seed** 下的初步复现记录，**不是** 5-seed；后续时间允许可用 `run_dblp_5seeds.py` 补跑至默认 5 种子并更新汇总。
+
+**工程观察**：DBLP 在 **`load_dblp` 与 meta-path RW 相似度预计算**阶段耗时相对 PubMed **明显更长**；下表训练时间仅对应 `main.py` 文末 **`Total training time`** 字段的均值（脚本 `summary.txt` 中 `avg training time`），**不包含**数据加载与 RW 预计算时间。
+
+| 指标 | mean ± std |
+|------|------------|
+| best_test_macro | 0.150100 ± 0.010967 |
+| best_test_micro | 0.387500 ± 0.026121 |
+| final_test_macro | 0.151867 ± 0.017625 |
+| final_test_micro | 0.396000 ± 0.035596 |
+
+- 平均单次训练时间（上述字段）：**10.1355 s**  
+- **best seed（按 best_test_macro）**：2026  
+- **worst seed（按 best_test_macro）**：3407  
+
+---
+
+## 4. 消融实验（3 seeds: 42, 3407, 2026）
 
 来源：`results/pubmed_ablation/summary.txt`。
 
@@ -53,7 +74,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 4. hybrid / temp / neighbor_strategy 扫描（优化分支归档）
+## 5. hybrid / temp / neighbor_strategy 扫描（优化分支归档）
 
 **不在 `reproduce-baseline`：** 下列批量脚本与 CLI 仅存在于 **`neighbor-strategy-dev`**（例如 `run_pubmed_neighbor_strategy.py`、`run_pubmed_hybrid_ratio_sweep.py`）。本分支代码已移除对应参数。
 
@@ -71,7 +92,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 5. 与 reproduce-baseline 对齐的观察
+## 6. 与 reproduce-baseline 对齐的观察
 
 - **论文复现默认**：频次 Top-K（无双参数策略扫描）。  
 - **`--r_neighbor`**：消融脚本「Random Neighbor」条目仍在 `run_pubmed_ablation.py` 中使用，含义不变。  
@@ -79,7 +100,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 6. 后续工作（建议）
+## 7. 后续工作（建议）
 
 | 方向 | 说明 |
 |------|------|

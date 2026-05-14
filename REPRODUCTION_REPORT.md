@@ -12,8 +12,8 @@
 
 ## 2. 复现目标
 
-- 在 **PubMed 节点分类** 任务上，按 `README.md` 给出的默认超参运行 **`Node Classification/main.py`**（默认 RW 后 **频次 Top-K**），并记录测试集 Macro-F1 / Micro-F1。  
-- 扩展实验（本分支）：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（含 `--r_neighbor` 随机邻居条目，`run_pubmed_ablation.py`）；数值见 **`EXPERIMENT_NOTES.md`** 与本地 `results/`。  
+- 在 **PubMed / DBLP** 节点分类上按 `README.md` 或 README 对齐命令运行 **`Node Classification/main.py`**，记录测试集 Macro-F1 / Micro-F1。  
+- PubMed：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP：**selected 3-seed** 结果已记入 **`EXPERIMENT_NOTES.md`**（来源 `results/dblp_5seeds/summary.txt`）；可用 `run_dblp_5seeds.py` 扩展种子。  
 - **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）。  
 - **不在本分支**：hybrid / temp / `neighbor_strategy` 扫描；相关内容仅在 **`neighbor-strategy-dev`** 与 **`EXPERIMENT_NOTES.md`** 历史小节。
 
@@ -43,7 +43,9 @@
 
 ---
 
-## 5. PubMed Node Classification 复现流程
+## 5. Node Classification 复现流程
+
+### 5.1 PubMed
 
 1. 创建并激活 Conda / venv，安装 PyTorch、DGL、`torch_scatter`（版本匹配）、`ogb` 等。  
 2. 将 PubMed 数据放入 **`data/PubMed/`**（含 `node.dat`、`link.dat`、`label.dat` 等，与 `utils.load_PubMed` 一致）。  
@@ -54,7 +56,20 @@ cd Node Classification
 python main.py --dataset PubMed --path ../data/ --seed 42
 ```
 
-4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`（见 **`PROJECT_STRUCTURE_AND_USAGE.md`**）。
+4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`。
+
+### 5.2 DBLP（README 超参；不写 `pubmed_nc_result.txt`）
+
+1. 将 DBLP 数据放入 **`data/DBLP/`**（与 `utils.load_dblp` 一致）。  
+2. README 表格对齐的单次示例（训练阶段计时见 `Total training time` 行；**数据加载与 RW 预计算另计且通常远长于 PubMed**）：
+
+```bash
+cd Node Classification
+python main.py --dataset DBLP --path ../data/ --seed <seed> \
+  --lr 5e-4 --dropout 0.5 --hidden 512 --n_layers 5 --batch_size 3000 --alpha 0.7 --K 20
+```
+
+3. 多 seed 汇总（脚本从 stdout 写 `results/dblp_5seeds/`）：`run_dblp_5seeds.py`（支持 `--seeds`、`--skip_existing`）。当前文档记载的 **selected 3-seed** 数值见 **`EXPERIMENT_NOTES.md`**。
 
 ---
 
@@ -64,9 +79,10 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 
 | 实验 | 要点 |
 |------|------|
-| 5-seed | `best_test_macro` mean ± std ≈ **0.6199 ± 0.0315**（5 个 seed） |
+| PubMed 5-seed | `best_test_macro` mean ± std ≈ **0.6199 ± 0.0315**（5 个 seed，见 `EXPERIMENT_NOTES.md`） |
+| DBLP selected **3** seeds | seeds [42, 3407, 2026]；`best_test_macro` **0.150100 ± 0.010967**；`best_test_micro` **0.387500 ± 0.026121**；`final_test_macro` **0.151867 ± 0.017625**；`final_test_micro` **0.396000 ± 0.035596**；平均训练段 **10.1355 s**（见 `results/dblp_5seeds/summary.txt`）。**非 5-seed**，为初步复现；**不含**邻居策略优化。 |
 | 消融（3 seeds） | Full EHGNN Macro ≈ **0.6032 ± 0.0107**；Random Neighbor（`--r_neighbor`）Macro ≈ **0.6227 ± 0.0099** |
-| 优化分支历史 sweep | 见 **`EXPERIMENT_NOTES.md`** §4（`neighbor-strategy-dev`，非本分支可运行脚本） |
+| 优化分支历史 sweep | 见 **`EXPERIMENT_NOTES.md`** §5（`neighbor-strategy-dev`，非本分支可运行脚本） |
 
 ---
 
@@ -98,7 +114,7 @@ python main.py --dataset PubMed --path ../data/ --seed 42
 | 项目 | 说明 |
 |------|------|
 | MAG240M | **完整训练 / 全量数据**依赖大规模磁盘与内存；本仓库以文档与脚本支持为主，**是否在目标机器完成端到端训练需单独确认** |
-| DBLP / Yelp | **未完成与 PubMed 同规格的系统化扩展对比**（本分支亦无 hybrid/temp CLI） |
+| DBLP | 已有 **selected 3-seed** baseline 记录（见 **`EXPERIMENT_NOTES.md`** §3）；满 5-seed 可后续补跑 |
 | Link Prediction | 未在本报告中汇总系统化指标 |
 | 论文逐项对齐 | 若课程或审稿要求严格对齐，需逐项核对论文附录中的实现细节与评测协议 |
 
