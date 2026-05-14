@@ -1,10 +1,13 @@
 import argparse
+import os
+import random
 import torch
 import torch.nn.functional as F
 import time
 import numpy as np
 from utils import random_walk_sim, accuracy, get_model_need, load_Yelp
 from models import EHGNN
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -20,16 +23,18 @@ def parse_args():
     parser.add_argument('--walk_num', type=int, default=40, help='每节点 meta-path 随机游走次数')
     parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏维度')
     parser.add_argument('--n_layers', type=int, default=4, help='MLP 层数')
-    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout 比率')
+    parser.add_argument('--dropout', type=float, default=0.5, help='Dropout 比率（README Node Classification | Yelp：0.5）')
     parser.add_argument('--eps', type=float, default=1e-5, help='PPR 数值项（当前 RW 未用）')
-    parser.add_argument('--alpha', type=float, default=0.5, help='自身分支与邻居聚合的融合系数 α')
+    parser.add_argument('--alpha', type=float, default=0.7, help='自身分支与邻居聚合的融合系数 α（README：0.7）')
     parser.add_argument('--num_threads', type=int, default=40, help='预留线程数（当前未用）')
     parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
     parser.add_argument('--val_epochs', type=int, default=5, help='验证间隔（epoch）')
     parser.add_argument('--lr', type=float, default=0.0003, help='学习率')
     parser.add_argument('--batch_size', type=int, default=3000, help='批大小')
     parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
+    parser.add_argument('--seed', type=int, default=42, help='随机种子')
     return parser.parse_args()
+
 
 metapaths_yelp = []
 metapaths_yelp.append(['locatedin', 'locatedin_r'])
@@ -39,6 +44,13 @@ metapaths_yelp.append(['describedwith', 'context', 'describedwith_r'])
 # Yelp 多标签节点分类入口（损失为 BCELoss）
 if __name__ == '__main__':
     args = parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     print(args)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else 'cpu')
 
@@ -52,7 +64,6 @@ if __name__ == '__main__':
 
     start = time.perf_counter()
     train_matrixs = []
-    val_matrixs = []
     test_matrixs = []
     t_typess = []
     for metapath in metapaths:
@@ -81,20 +92,26 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fcn = torch.nn.BCELoss()
 
+    best_test_macro = -1.0
+    best_test_micro = -1.0
+    best_epoch = -1
+    final_test_macro = None
+    final_test_micro = None
+
     print('Begin Train.')
+    train_begin = time.perf_counter()
     for run in range(args.epochs):
         start = time.perf_counter()
         dataloader = torch.utils.data.DataLoader(idx_train, batch_size=args.batch_size, shuffle=True, drop_last=False)
         model.train()
         loss_avg = []
         ma_avg = []
-        mi_avg =[]
+        mi_avg = []
         for batch in dataloader:
             optimizer.zero_grad()
             s_idxs, t_idxs, weightss = get_model_need(len(metapaths), train_matrixs, t_typess, batch)
             batch_out = model(features, features[s_type][batch], s_idxs, t_idxs, weightss, t_typess, batch.shape[0], device).sigmoid()
             y_true = labels[batch].to(device)
-            # 调试时可打印 batch_out / y_true 形状
             loss = loss_fcn(batch_out, y_true.float())
             loss_avg.append(loss.item())
             macro_f1, micro_f1 = accuracy(batch_out, y_true, args.dataset)
@@ -110,8 +127,7 @@ if __name__ == '__main__':
         if run % args.val_epochs == 0 and run != 0:
             with torch.no_grad():
                 model.eval()
-                # 测试集评估
-                start = time.perf_counter()
+                start_ev = time.perf_counter()
                 test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
                 test_out = torch.FloatTensor([])
                 for batch_test in test_loader:
@@ -121,5 +137,60 @@ if __name__ == '__main__':
 
                 y_true = labels[idx_test]
                 macro_f1, micro_f1 = accuracy(test_out, y_true, args.dataset)
-                end = time.perf_counter()
-                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1, end-start))
+                end_ev = time.perf_counter()
+                final_test_macro, final_test_micro = macro_f1, micro_f1
+                if macro_f1 > best_test_macro:
+                    best_test_macro = macro_f1
+                    best_test_micro = micro_f1
+                    best_epoch = run
+                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1, end_ev - start_ev))
+
+    final_epoch = args.epochs - 1 if args.epochs > 0 else -1
+    last_eval_at_final_epoch = (
+        args.epochs > 0
+        and final_epoch != 0
+        and final_epoch % args.val_epochs == 0)
+    if args.epochs > 0 and not last_eval_at_final_epoch:
+        with torch.no_grad():
+            model.eval()
+            start_ev = time.perf_counter()
+            test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
+            test_out = torch.FloatTensor([])
+            for batch_test in test_loader:
+                s_idxs, t_idxs, weightss = get_model_need(len(metapaths), test_matrixs, t_typess, batch_test)
+                result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess, batch_test.shape[0], device).to('cpu').sigmoid()
+                test_out = torch.cat((test_out, result), dim=0)
+            y_true = labels[idx_test]
+            macro_f1, micro_f1 = accuracy(test_out, y_true, args.dataset)
+            end_ev = time.perf_counter()
+            final_test_macro, final_test_micro = macro_f1, micro_f1
+            print('Final epoch {} test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(
+                final_epoch, macro_f1, micro_f1, end_ev - start_ev))
+
+    print('Best Test Macro-F1 : {:.4f}, Micro-F1 : {:.4f}, Epoch : {}'.format(
+        best_test_macro, best_test_micro, best_epoch))
+    print('Final Epoch : {}, Final Test Macro-F1 : {:.4f}, Micro-F1 : {:.4f}'.format(
+        final_epoch, final_test_macro, final_test_micro))
+
+    total_training_sec = time.perf_counter() - train_begin
+    print('Total training time: {:.4f} s'.format(total_training_sec))
+
+    if args.dataset == 'Yelp':
+        results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
+        os.makedirs(results_dir, exist_ok=True)
+        out_path = os.path.join(results_dir, 'yelp_nc_result.txt')
+        lines = [
+            'seed={}'.format(args.seed),
+            'best_test_macro={}'.format(best_test_macro),
+            'best_test_micro={}'.format(best_test_micro),
+            'best_epoch={}'.format(best_epoch),
+            'final_epoch={}'.format(final_epoch),
+            'final_test_macro={}'.format(final_test_macro),
+            'final_test_micro={}'.format(final_test_micro),
+            'total_training_time_sec={}'.format(total_training_sec),
+            'alpha={} K={} lr={} dropout={} hidden={} layers={} batch_size={}'.format(
+                args.alpha, args.K, args.lr, args.dropout, args.hidden, args.n_layers, args.batch_size),
+        ]
+        with open(out_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines) + '\n')
+        print('Results saved to: {}'.format(out_path))

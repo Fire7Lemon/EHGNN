@@ -1,7 +1,7 @@
 # EHGNN 项目结构与使用说明
 
 **当前文档默认对应 Git 分支：`reproduce-baseline`。**  
-该分支保留论文复现与批量脚本（PubMed：5-seed、消融；DBLP：`run_dblp_5seeds.py` 等）；**不包含** `neighbor_strategy` / hybrid / temp 等邻居策略扩展（见分支 **`neighbor-strategy-dev`**）。
+该分支保留论文复现与批量脚本（PubMed：5-seed、消融；DBLP：`run_dblp_5seeds.py`；Yelp：`run_yelp_3seeds.py`）；**不包含** `neighbor_strategy` / hybrid / temp 等邻居策略扩展（见分支 **`neighbor-strategy-dev`**）。
 
 文档依据当前仓库布局整理（路径相对于仓库根目录 `EHGNN/`）。运行命令前请将工作目录切换到对应子项目。
 
@@ -29,6 +29,7 @@ EHGNN/
 │   ├── run_pubmed_5seeds.py
 │   ├── run_pubmed_ablation.py
 │   ├── run_dblp_5seeds.py
+│   ├── run_yelp_3seeds.py
 │   └── results/              # NC 实验产出（默认不提交 Git）
 ├── Link Prediction/
 │   ├── main.py
@@ -51,12 +52,12 @@ EHGNN/
 
 | 目录 | 作用 |
 |------|------|
-| **Node Classification** | PubMed / DBLP 节点分类（`main.py`）；Yelp 用 `main_yelp.py`。含 RW 相似度、`EHGNN`、训练；`run_pubmed_5seeds.py` / `run_pubmed_ablation.py`；DBLP 多 seed 可用 `run_dblp_5seeds.py`；`results/`。 |
+| **Node Classification** | PubMed / DBLP：`main.py`；Yelp：`main_yelp.py`。RW、`EHGNN`；`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`、`run_dblp_5seeds.py`、`run_yelp_3seeds.py`；`results/`（含 Yelp **selected 3-seed** 与测试指标跨 seed 相同等现象说明见 **`EXPERIMENT_NOTES.md`** §4）。 |
 | **Link Prediction** | 链接预测：`main.py` / `main_yelp.py`；并行版本 `parallel_main*.py`（依赖等与 NC 不同）。 |
 | **MAG240M** | OGB-LSC MAG240M 大规模节点分类；数据根目录语义见 `README_MAG240M.md`（`mag240m_kddcup2021/`）。 |
 | **scripts** | MAG240M：数据校验脚本与 Linux 一键启动脚本。 |
 | **data** | 论文三组数据（PubMed / DBLP / Yelp）及可选 MAG240M 父目录（本地放置）。 |
-| **Node Classification/results** | PubMed：单次快照、5-seed、消融；**DBLP**：`dblp_5seeds/`（`run_dblp_5seeds.py` 汇总，含 selected seeds 的 `summary.txt`）；若本地仍留有历史邻居策略目录，为其它分支产物。 |
+| **Node Classification/results** | PubMed：快照、5-seed、消融；DBLP：`dblp_5seeds/`；**Yelp**：`yelp_3seeds/`（`run_yelp_3seeds.py`）；详见 **`EXPERIMENT_NOTES.md`**；历史邻居策略目录若存在则为其它分支产物。 |
 
 ---
 
@@ -90,9 +91,10 @@ python main.py --dataset DBLP --path ../data/ --seed 42
 | 单次 DBLP NC（README 超参） | 见 **`REPRODUCTION_REPORT.md`** §5.2 |
 | 5-seed（PubMed） | `python run_pubmed_5seeds.py` |
 | 消融（PubMed） | `python run_pubmed_ablation.py` |
-| DBLP 多 seed（可选 `--seeds`，不写 PubMed txt） | `python run_dblp_5seeds.py`（如 `--seeds 42 3407 2026`） |
+| DBLP 多 seed | `python run_dblp_5seeds.py`（如 `--seeds 42 3407 2026`） |
+| Yelp 多 seed（README 超参；见 **`EXPERIMENT_NOTES.md`** §4） | `python run_yelp_3seeds.py`（如 `--seeds 42 3407 2026`，可选 `--skip_existing`） |
 
-`main.py` 默认 RW 后为 **频次 Top-K**；`--r_neighbor` 为随机邻居消融。当前文档中 **DBLP baseline 数值**为 **selected 3 seeds**（非 5），见 `results/dblp_5seeds/summary.txt` 与 **`EXPERIMENT_NOTES.md`**。
+`main.py` 默认 RW 后为 **频次 Top-K**；`--r_neighbor` 为随机邻居消融。**DBLP** 当前文档数值为 **selected 3 seeds**；**Yelp** 亦为 **selected 3 seeds**，且测试 **Macro/Micro 在三 seed 下数值完全一致（std=0）**，含义见 **`EXPERIMENT_NOTES.md`**，**不等于**稳定性结论。
 
 ---
 
@@ -138,6 +140,7 @@ python scripts/check_mag240m_data.py --root /path/to/parent
 | `pubmed_5seeds/` | 五种子运行副本、`pubmed_5seeds_summary.csv`、`pubmed_5seeds_summary.txt`。 |
 | `pubmed_ablation/` | 消融各配置 × seed 的 txt、`summary.csv`、`summary.txt`。 |
 | `dblp_5seeds/` | DBLP 多 seed：`summary.csv`、`summary.txt`、各 `dblp_seed_*.log`（**汇总种子数以脚本本次 `--seeds` 为准**；文档当前记录为 **3 seed**）。 |
+| `yelp_3seeds/` | Yelp selected seeds：`summary.csv`、`summary.txt`、各 `yelp_seed_*.log`；**当前文档对应 3 seed**。测试 F1 **跨 seed 完全相同**等症结见 **`EXPERIMENT_NOTES.md`** §4。 |
 
 （历史目录如 `pubmed_neighbor_strategy/`、`pubmed_hybrid_ratio_sweep/` 若仍存在，来自 **`neighbor-strategy-dev`** 实验，本分支不再提供对应脚本。）
 

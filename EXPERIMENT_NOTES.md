@@ -58,7 +58,32 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 4. 消融实验（3 seeds: 42, 3407, 2026）
+## 4. Yelp Node Classification baseline（selected 3 seeds）
+
+**分支：`reproduce-baseline`**；**不包含** `neighbor_strategy` / hybrid / temp；入口为 **`main_yelp.py`**（多标签：**sigmoid + BCELoss**）。
+
+来源：`results/yelp_3seeds/summary.txt`。**汇总的 seeds = [42, 3407, 2026]**（n=3，std ddof=1），为 **selected 3-seed**，**不是**更大规模种子扫描的结论。
+
+| 指标 | mean ± std |
+|------|------------|
+| best_test_macro | 0.666300 ± 0.000000 |
+| best_test_micro | 0.875800 ± 0.000000 |
+| final_test_macro | 0.666300 ± 0.000000 |
+| final_test_micro | 0.875800 ± 0.000000 |
+
+- 平均单次训练时间（脚本 `avg training time`）：**964.1782 s**  
+- **best seed / worst seed（按 best_test_macro）**：汇总上均为 **42**（三 seed 的 test 宏微 F1 **逐数相同**，故脚本中 best/worst 重合）。  
+
+**任务与度量（事实）**：`utils.accuracy(..., dataset='Yelp')` 对 **sigmoid 输出先以 0.5 阈值二值化**，再按样本计算 sklearn F1 后平均（见 **`Node Classification/utils.py`**）。
+
+**异常现象（记录，不夸大）**：三份 seed 下 **训练过程（如 loss / 训练段 macro/micro）不同**（例如各 run 的 `train_time_s` 不同），但日志中 **测试集 Macro-F1 / Micro-F1 在所有记录点均为 0.6663 / 0.8758 且跨 seed 完全一致**。  
+**可能原因（仅推断，未在本文档中当作已证结论）**：更可能来自 **测试侧二值预测在 0.5 阈值后未发生变化**、或 **指标对概率微小变化不敏感**；**不应**把 **std=0** 直接解读为「Yelp 模型强稳定」或「复现极其可靠」。  
+
+**后续可查（建议）**：检查测试集 **sigmoid 分布**、**阈值敏感性**、以及是否需要与论文对齐的 **多标签整体评估方式**（不改代码的讨论项）。
+
+---
+
+## 5. 消融实验（3 seeds: 42, 3407, 2026）
 
 来源：`results/pubmed_ablation/summary.txt`。
 
@@ -74,7 +99,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 5. hybrid / temp / neighbor_strategy 扫描（优化分支归档）
+## 6. hybrid / temp / neighbor_strategy 扫描（优化分支归档）
 
 **不在 `reproduce-baseline`：** 下列批量脚本与 CLI 仅存在于 **`neighbor-strategy-dev`**（例如 `run_pubmed_neighbor_strategy.py`、`run_pubmed_hybrid_ratio_sweep.py`）。本分支代码已移除对应参数。
 
@@ -92,7 +117,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 6. 与 reproduce-baseline 对齐的观察
+## 7. 与 reproduce-baseline 对齐的观察
 
 - **论文复现默认**：频次 Top-K（无双参数策略扫描）。  
 - **`--r_neighbor`**：消融脚本「Random Neighbor」条目仍在 `run_pubmed_ablation.py` 中使用，含义不变。  
@@ -100,7 +125,7 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 7. 后续工作（建议）
+## 8. 后续工作（建议）
 
 | 方向 | 说明 |
 |------|------|

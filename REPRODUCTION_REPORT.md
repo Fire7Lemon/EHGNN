@@ -12,8 +12,8 @@
 
 ## 2. 复现目标
 
-- 在 **PubMed / DBLP** 节点分类上按 `README.md` 或 README 对齐命令运行 **`Node Classification/main.py`**，记录测试集 Macro-F1 / Micro-F1。  
-- PubMed：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP：**selected 3-seed** 结果已记入 **`EXPERIMENT_NOTES.md`**（来源 `results/dblp_5seeds/summary.txt`）；可用 `run_dblp_5seeds.py` 扩展种子。  
+- 在 **PubMed / DBLP** 节点分类上按 `README.md` 或 README 对齐命令运行 **`Node Classification/main.py`**，记录测试集 Macro-F1 / Micro-F1；**Yelp** 走 **`main_yelp.py`**（多标签），selected **3-seed** 汇总见 **`EXPERIMENT_NOTES.md`**（`results/yelp_3seeds/summary.txt`）。  
+- PubMed：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP：**selected 3-seed**（`run_dblp_5seeds.py`）。Yelp：**selected 3-seed**（`run_yelp_3seeds.py`）；测试指标跨 seed **完全一致**等现象见 **`EXPERIMENT_NOTES.md`** §4，**不得**解读为强稳定性。  
 - **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）。  
 - **不在本分支**：hybrid / temp / `neighbor_strategy` 扫描；相关内容仅在 **`neighbor-strategy-dev`** 与 **`EXPERIMENT_NOTES.md`** 历史小节。
 
@@ -69,7 +69,20 @@ python main.py --dataset DBLP --path ../data/ --seed <seed> \
   --lr 5e-4 --dropout 0.5 --hidden 512 --n_layers 5 --batch_size 3000 --alpha 0.7 --K 20
 ```
 
-3. 多 seed 汇总（脚本从 stdout 写 `results/dblp_5seeds/`）：`run_dblp_5seeds.py`（支持 `--seeds`、`--skip_existing`）。当前文档记载的 **selected 3-seed** 数值见 **`EXPERIMENT_NOTES.md`**。
+3. 多 seed 汇总（脚本从 stdout 写 `results/dblp_5seeds/`）：`run_dblp_5seeds.py`（支持 `--seeds`、`--skip_existing`）。当前文档记载的 **selected 3-seed** 数值见 **`EXPERIMENT_NOTES.md`** §3。
+
+### 5.3 Yelp（README 超参；`main_yelp.py`）
+
+1. 将 Yelp 数据放入 **`data/Yelp/`**（与 `utils.load_Yelp` 一致）。  
+2. README 对齐批量脚本：`run_yelp_3seeds.py`（默认或 `--seeds`；可选 `--skip_existing`），输出 **`results/yelp_3seeds/`**。单次示例：
+
+```bash
+cd Node Classification
+python main_yelp.py --dataset Yelp --path ../data/ --seed <seed> \
+  --alpha 0.7 --dropout 0.5 --K 20 --lr 0.0003 --hidden 256 --n_layers 4 --batch_size 3000
+```
+
+3. **selected 3-seed** 数值与 **测试 F1 跨 seed 完全一致等现象**见 **`EXPERIMENT_NOTES.md`** §4。
 
 ---
 
@@ -80,9 +93,10 @@ python main.py --dataset DBLP --path ../data/ --seed <seed> \
 | 实验 | 要点 |
 |------|------|
 | PubMed 5-seed | `best_test_macro` mean ± std ≈ **0.6199 ± 0.0315**（5 个 seed，见 `EXPERIMENT_NOTES.md`） |
-| DBLP selected **3** seeds | seeds [42, 3407, 2026]；`best_test_macro` **0.150100 ± 0.010967**；`best_test_micro` **0.387500 ± 0.026121**；`final_test_macro` **0.151867 ± 0.017625**；`final_test_micro` **0.396000 ± 0.035596**；平均训练段 **10.1355 s**（见 `results/dblp_5seeds/summary.txt`）。**非 5-seed**，为初步复现；**不含**邻居策略优化。 |
+| DBLP selected **3** seeds | seeds [42, 3407, 2026]；`best_test_macro` **0.150100 ± 0.010967**；`best_test_micro` **0.387500 ± 0.026121**；`final_test_macro` **0.151867 ± 0.017625**；`final_test_micro` **0.396000 ± 0.035596**；平均训练段 **10.1355 s**（`results/dblp_5seeds/summary.txt`，**EXPERIMENT_NOTES.md** §3）。 |
+| Yelp selected **3** seeds | seeds [42, 3407, 2026]；`best/final_test_macro` **0.666300 ± 0.000000**；`best/final_test_micro` **0.875800 ± 0.000000**；平均训练 **964.1782 s**；best/worst seed 汇总均为 **42**（因三 seed 测试 F1 **相同**）。来源 `results/yelp_3seeds/summary.txt`；**sigmoid+BCE**、**0.5 阈值二值化**；训练过程不同而测试指标相同——**不应**将 std=0 当作强稳定性，见 **`EXPERIMENT_NOTES.md`** §4。 |
 | 消融（3 seeds） | Full EHGNN Macro ≈ **0.6032 ± 0.0107**；Random Neighbor（`--r_neighbor`）Macro ≈ **0.6227 ± 0.0099** |
-| 优化分支历史 sweep | 见 **`EXPERIMENT_NOTES.md`** §5（`neighbor-strategy-dev`，非本分支可运行脚本） |
+| 优化分支历史 sweep | 见 **`EXPERIMENT_NOTES.md`** §6（`neighbor-strategy-dev`，非本分支可运行脚本） |
 
 ---
 
@@ -114,7 +128,8 @@ python main.py --dataset DBLP --path ../data/ --seed <seed> \
 | 项目 | 说明 |
 |------|------|
 | MAG240M | **完整训练 / 全量数据**依赖大规模磁盘与内存；本仓库以文档与脚本支持为主，**是否在目标机器完成端到端训练需单独确认** |
-| DBLP | 已有 **selected 3-seed** baseline 记录（见 **`EXPERIMENT_NOTES.md`** §3）；满 5-seed 可后续补跑 |
+| DBLP | 已有 **selected 3-seed** baseline（§3）；满 5-seed 可后续补跑 |
+| Yelp | 已有 **selected 3-seed** baseline（§4）；测试 **Macro/Micro 跨 seed 数值完全相同**，见 §4 **异常现象**——需区分记录事实与稳定性推断 |
 | Link Prediction | 未在本报告中汇总系统化指标 |
 | 论文逐项对齐 | 若课程或审稿要求严格对齐，需逐项核对论文附录中的实现细节与评测协议 |
 
