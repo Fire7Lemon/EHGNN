@@ -1,7 +1,19 @@
 import argparse
-import torch
+import random
 import time
-from utils import load_DBLP, random_walk_sim, get_model_need, accuracy, neg_sample, load_PubMed
+
+import numpy as np
+import torch
+
+from utils import (
+    load_DBLP,
+    lp_rw_seeds_all_nodes,
+    random_walk_sim,
+    get_model_need,
+    accuracy,
+    neg_sample,
+    load_PubMed,
+)
 from models import EHGNN
 
 def parse_args():
@@ -26,6 +38,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.005, help='学习率')
     parser.add_argument('--batch_size', type=int, default=4000, help='批大小')
     parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
+    parser.add_argument('--seed', type=int, default=42, help='random / numpy / torch 随机种子')
     return parser.parse_args()
 
 metapaths_dblp = []
@@ -45,6 +58,13 @@ metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
 
 if __name__ == '__main__':
     args = parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     print(args)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else 'cpu')
 
@@ -52,11 +72,11 @@ if __name__ == '__main__':
     if args.dataset == 'DBLP':
         g, features, train_links, test_links, labels = load_DBLP(args.path, args.dataset, args.is_normalize)
         metapaths = metapaths_dblp
-        num_sample = 1766361
+        num_sample = int(g.num_nodes('author'))
     elif args.dataset == 'PubMed':
         g, features, train_links, test_links, labels = load_PubMed(args.path, args.dataset, args.is_normalize)
         metapaths = metapaths_pubmed
-        num_sample = 20163
+        num_sample = int(g.num_nodes('disease'))
 
     end = time.perf_counter()
     print('Done Load Data, Running time: {:.4f} Seconds'.format(end - start))
@@ -66,7 +86,10 @@ if __name__ == '__main__':
     sim_matrixs = []
     t_typess = []
     for metapath in metapaths:
-        sim_matrix, t_types, s_type = random_walk_sim(torch.LongTensor([_ for _ in range(num_sample)]), g, metapath, args.walk_num, args.K, args.r_neighbor)
+        rw_seeds = lp_rw_seeds_all_nodes(g, metapath)
+        sim_matrix, t_types, s_type = random_walk_sim(
+            rw_seeds, g, metapath, args.walk_num, args.K, args.r_neighbor,
+        )
         sim_matrixs.append(sim_matrix)
         t_typess.append(t_types)
     end = time.perf_counter()
@@ -87,7 +110,45 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fcn = torch.nn.BCELoss()
 
+    def evaluate_lp():
+        """在测试边上计算 Test AUC 与 AP（average_precision_score）。"""
+        with torch.no_grad():
+            model.eval()
+            test_loader = torch.utils.data.DataLoader(
+                torch.LongTensor([_ for _ in range(num_sample)]),
+                batch_size=4000,
+                shuffle=False,
+                drop_last=False,
+            )
+            emb = torch.FloatTensor([])
+            for batch_test in test_loader:
+                s_idxs, t_idxs, weightss = get_model_need(len(metapaths), sim_matrixs, t_typess, batch_test)
+                batch_out = model(
+                    features,
+                    features[s_type][batch_test],
+                    s_idxs,
+                    t_idxs,
+                    weightss,
+                    t_typess,
+                    batch_test.shape[0],
+                    device,
+                )
+                emb = torch.cat((emb, batch_out.to('cpu')), dim=0)
+
+            pos_s_out = emb[test_links[0]]
+            pos_t_out = emb[test_links[1]]
+            pos = (pos_s_out * pos_t_out).sum(dim=-1)
+            test_out = pos.sigmoid().cpu()
+            y_true = labels
+            auc, ap = accuracy(test_out, y_true)
+            return auc, ap
+
+    best_test_auc = float('-inf')
+    best_test_ap = float('-inf')
+    best_epoch = -1
+
     print('Begin Train.')
+    train_begin = time.perf_counter()
     for run in range(args.epochs):
         loss_avg = []
         auc_avg = []
@@ -128,22 +189,38 @@ if __name__ == '__main__':
                   format(run, step, loss.item(), auc, precision, end - start))
 
             if step % args.val_epochs == 0 and step != 0:
-                with torch.no_grad():
-                    model.eval()
-                    # 链接预测：在测试边上算 AUC / AP
-                    start = time.perf_counter()
-                    test_loader = torch.utils.data.DataLoader(torch.LongTensor([_ for _ in range(num_sample)]), batch_size=4000, shuffle=False, drop_last=False)
-                    emb = torch.FloatTensor([])
-                    for batch_test in test_loader:
-                        s_idxs, t_idxs, weightss = get_model_need(len(metapaths), sim_matrixs, t_typess, batch_test)
-                        batch_out = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess, batch_test.shape[0], device)
-                        emb = torch.cat((emb, batch_out.to('cpu')), dim=0)
+                start = time.perf_counter()
+                auc, precision = evaluate_lp()
+                end = time.perf_counter()
+                print(
+                    'Test auc : {:.4f}, precision : {:.4f}, Time : {:.4f}'.format(
+                        auc, precision, end - start,
+                    ),
+                )
+                if auc > best_test_auc or (
+                    auc == best_test_auc and precision > best_test_ap
+                ):
+                    best_test_auc = auc
+                    best_test_ap = precision
+                    best_epoch = run
 
-                    pos_s_out = emb[test_links[0]]
-                    pos_t_out = emb[test_links[1]]
-                    pos = (pos_s_out * pos_t_out).sum(dim=-1)
-                    test_out = pos.sigmoid().cpu()
-                    y_true = labels
-                    auc, precision = accuracy(test_out, y_true)
-                    end = time.perf_counter()
-                    print('Test auc : {:.4f}, precision : {:.4f}, Time : {:.4f}'.format(auc, precision, end - start))
+    final_epoch = args.epochs - 1 if args.epochs > 0 else -1
+    final_test_auc, final_test_ap = evaluate_lp()
+    total_training_sec = time.perf_counter() - train_begin
+
+    if best_epoch < 0:
+        best_test_auc = final_test_auc
+        best_test_ap = final_test_ap
+        best_epoch = final_epoch
+
+    print(
+        'Best Test AUC : {:.4f}, AP : {:.4f}, Epoch : {}'.format(
+            best_test_auc, best_test_ap, best_epoch,
+        ),
+    )
+    print(
+        'Final Epoch : {}, Final Test AUC : {:.4f}, AP : {:.4f}'.format(
+            final_epoch, final_test_auc, final_test_ap,
+        ),
+    )
+    print('Total training time: {:.4f} s'.format(total_training_sec))

@@ -125,7 +125,16 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 8. 后续工作（建议）
+## 8. Link Prediction（PubMed）：本地 smoke test 与服务器完整复现
+
+- **本地（笔记本类环境）**：**只做 smoke**，验证数据加载、meta-path RW 预计算、训练与评测日志链路；**不建议**在此跑 **`README.md`** 默认 **100 epoch** 的完整 PubMed LP（CPU/RW 与训练耗时过长）。典型资源约束示例：**约 16GB RAM**、长时间 CPU 计算。
+- **Smoke 脚本**：在 **`Link Prediction/`** 下运行 **`python run_pubmed_lp_smoke.py`**，README PubMed LP 超参 + **`--epochs 3`**、**`--val_epochs 1`**，日志：`results/pubmed_lp_smoke/pubmed_lp_smoke_seed_42.log`。日志中 `precision` 实际对应 **AP（Average Precision，平均精确率）**（见 **`Link Prediction/utils.py`**）。
+- **服务器**：完整 **3-seed**（或后续扩展 **5-seed**）与 **`README.md`** 对齐 epoch 的 PubMed LP，计划在 **GPU/高内存** 机器上使用 **`run_pubmed_lp_3seeds.py`**（或等价显式 **`main.py --epochs 100`**）执行。
+- **MAG240M**：大规模节点分类仍按 **`README_MAG240M.md`** 在 **Linux 服务器** 部署与训练（本地不占位跑全量）。
+
+---
+
+## 9. 后续工作（建议）
 
 | 方向 | 说明 |
 |------|------|

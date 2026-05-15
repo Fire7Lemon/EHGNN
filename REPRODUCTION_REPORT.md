@@ -13,8 +13,9 @@
 ## 2. 复现目标
 
 - 在 **PubMed / DBLP** 节点分类上按 `README.md` 或 README 对齐命令运行 **`Node Classification/main.py`**，记录测试集 Macro-F1 / Micro-F1；**Yelp** 走 **`main_yelp.py`**（多标签），selected **3-seed** 汇总见 **`EXPERIMENT_NOTES.md`**（`results/yelp_3seeds/summary.txt`）。  
+- **Link Prediction（PubMed）**：本地 **`run_pubmed_lp_smoke.py`** 仅做管线 smoke；**README 对齐的完整多 seed 训练**计划在 **服务器** 运行（见 **`EXPERIMENT_NOTES.md`** §8）。  
 - PubMed：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP：**selected 3-seed**（`run_dblp_5seeds.py`）。Yelp：**selected 3-seed**（`run_yelp_3seeds.py`）；测试指标跨 seed **完全一致**等现象见 **`EXPERIMENT_NOTES.md`** §4，**不得**解读为强稳定性。  
-- **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）。  
+- **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）；**完整训练计划在服务器执行**。  
 - **不在本分支**：hybrid / temp / `neighbor_strategy` 扫描；相关内容仅在 **`neighbor-strategy-dev`** 与 **`EXPERIMENT_NOTES.md`** 历史小节。
 
 ---
@@ -43,7 +44,7 @@
 
 ---
 
-## 5. Node Classification 复现流程
+## 5. 复现流程（节点分类为主；§5.4 为 Link Prediction）
 
 ### 5.1 PubMed
 
@@ -83,6 +84,12 @@ python main_yelp.py --dataset Yelp --path ../data/ --seed <seed> \
 ```
 
 3. **selected 3-seed** 数值与 **测试 F1 跨 seed 完全一致等现象**见 **`EXPERIMENT_NOTES.md`** §4。
+
+### 5.4 Link Prediction（PubMed）
+
+1. 数据放入 **`data/PubMed/`**（与 **`Link Prediction/utils.load_PubMed`** 一致）。  
+2. **本地 smoke（推荐笔记本）**：在 **`Link Prediction/`** 下 **`python run_pubmed_lp_smoke.py`**；日志 **`results/pubmed_lp_smoke/pubmed_lp_smoke_seed_42.log`**；指标输出中 **`precision`** 对应 **AP（Average Precision，平均精确率）**。  
+3. **服务器完整复现**：使用 **`run_pubmed_lp_3seeds.py`** 或其它方式调用 **`main.py`**，显式传入 **`README.md`** PubMed LP 一行超参及 **`--epochs 100`**（或与论文对齐的 epoch）；多 seed 汇总写入 **`results/pubmed_lp_3seeds/`**。详见 **`EXPERIMENT_NOTES.md`** §8。
 
 ---
 
@@ -130,7 +137,7 @@ python main_yelp.py --dataset Yelp --path ../data/ --seed <seed> \
 | MAG240M | **完整训练 / 全量数据**依赖大规模磁盘与内存；本仓库以文档与脚本支持为主，**是否在目标机器完成端到端训练需单独确认** |
 | DBLP | 已有 **selected 3-seed** baseline（§3）；满 5-seed 可后续补跑 |
 | Yelp | 已有 **selected 3-seed** baseline（§4）；测试 **Macro/Micro 跨 seed 数值完全相同**，见 §4 **异常现象**——需区分记录事实与稳定性推断 |
-| Link Prediction | 未在本报告中汇总系统化指标 |
+| Link Prediction | **本地**仅 **`run_pubmed_lp_smoke.py`** smoke；**README 对齐的完整 LP / 多 seed 汇总**计划在 **服务器** 运行（§5.4、**`EXPERIMENT_NOTES.md`** §8） |
 | 论文逐项对齐 | 若课程或审稿要求严格对齐，需逐项核对论文附录中的实现细节与评测协议 |
 
 ---

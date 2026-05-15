@@ -376,12 +376,54 @@ def accuracy(output, labels):
     precision = average_precision_score(labels, output)
     return auc, precision
 
+
+def metapath_first_src_ntype(g, metapath):
+    """meta-path 第一条边在 canonical 形式下的源节点类型名（供 DGL random_walk 起点 ID 空间对齐）。"""
+    srctype, _, _ = g.to_canonical_etype(metapath[0])
+    return srctype
+
+
+def lp_rw_seeds_all_nodes(g, metapath):
+    """对给定 meta-path，取其源类型下全部局部节点 ID [0 .. num_nodes-1] 作为 RW 起点（方案 A）。"""
+    srctype = metapath_first_src_ntype(g, metapath)
+    n = g.num_nodes(srctype)
+    return torch.arange(n, dtype=torch.long)
+
+
 def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
-    list_idx = list(batch_idx)
-    list_idx = [val for val in list_idx for _ in range(num_per_node)]
+    srctype = metapath_first_src_ntype(g, metapath)
+    src_type_idx = list(g.ntypes).index(srctype)
+    n_limit = int(g.num_nodes(srctype))
+
+    if torch.is_tensor(batch_idx):
+        flat = batch_idx.detach().cpu().numpy().astype(np.int64, copy=False).ravel()
+        n_batch = int(batch_idx.shape[0])
+    else:
+        flat = np.asarray([int(x) for x in list(batch_idx)], dtype=np.int64)
+        n_batch = int(flat.shape[0])
+
+    if n_batch == 0:
+        raise ValueError('random_walk_sim: empty batch_idx')
+
+    max_seed_id = int(flat.max())
+    min_seed_id = int(flat.min())
+    if min_seed_id < 0 or max_seed_id >= n_limit:
+        raise ValueError(
+            'random_walk_sim: seed node ID out of range for meta-path source type.\n'
+            '  metapath={}\n'
+            '  start_type={}\n'
+            '  num_seed_nodes={}\n'
+            '  min_seed_id={}\n'
+            '  max_seed_id={}\n'
+            '  g.num_nodes(start_type)={}'.format(
+                list(metapath), srctype, n_batch, min_seed_id, max_seed_id, n_limit,
+            ),
+        )
+
+    list_idx = flat.tolist()
+    list_idx = [int(val) for val in list_idx for _ in range(num_per_node)]
     walks, types = dgl.sampling.random_walk(g=g, nodes=list_idx, metapath=metapath)
-    s_type = types[0]
-    num_s = g.num_nodes(g.ntypes[types[0]])
+    num_s = n_limit
     tnode_types = set(types[1:].tolist())  # 去掉起点类型，保留末端目标类型
     row_nodes = {}
     col_nodes = {}
@@ -394,12 +436,12 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
         topk_counts[t_type] = []
 
     if random_flag:
-        for i in range(batch_idx.shape[0]):
+        for i in range(n_batch):
             s_node = int(walks[i * num_per_node, 0])
             for t_type in tnode_types:
                 t_indexs = torch.nonzero(types == t_type)
 
-                if t_type == types[0]:
+                if t_type == src_type_idx:
                     # 同源类型时去掉游走序列的第一个位置，避免重复计源点
                     t_indexs = t_indexs[1:]
 
@@ -419,12 +461,12 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
                     col_nodes[t_type].extend(topk_node)
                     topk_counts[t_type].extend(topk_count / np.sum(topk_count))
     else:
-        for i in range(batch_idx.shape[0]):
+        for i in range(n_batch):
             s_node = int(walks[i * num_per_node, 0])
             for t_type in tnode_types:
                 t_indexs = torch.nonzero(types == t_type)
 
-                if t_type == types[0]:
+                if t_type == src_type_idx:
                     # 同源类型时去掉游走序列的第一个位置，避免重复计源点
                     t_indexs = t_indexs[1:]
 
@@ -446,10 +488,20 @@ def random_walk_sim(batch_idx, g, metapath, num_per_node, K, random_flag):
         num_t = g.num_nodes(g.ntypes[t_type])
         sim_mitrix[t_type] = sp.csr_matrix((topk_counts[t_type], (row_nodes[t_type], col_nodes[t_type])), shape=(num_s, num_t))
 
-    return sim_mitrix, list(tnode_types), int(s_type)
+    # 与 load_* 中 features 字典键一致：g.ntypes 的顺序决定整数类型下标
+    return sim_mitrix, list(tnode_types), int(src_type_idx)
 
 def get_weights_sidx(sim_matrix, idx):
-    sim_matrix = sim_matrix[idx]
+    """对 CSR 行子集索引；idx 可能为 torch.Tensor，需转为 numpy int64 再索引 scipy.sparse。"""
+    if torch.is_tensor(idx):
+        idx_np = idx.detach().cpu().numpy().astype(np.int64, copy=False).ravel()
+    elif isinstance(idx, (list, tuple)):
+        idx_np = np.asarray(idx, dtype=np.int64)
+    elif isinstance(idx, np.ndarray):
+        idx_np = idx.astype(np.int64, copy=False).ravel()
+    else:
+        idx_np = np.asarray(idx, dtype=np.int64).ravel()
+    sim_matrix = sim_matrix[idx_np]
     s_idx, t_idx = sim_matrix.nonzero()
     s_idx = torch.LongTensor(s_idx)
     weights = torch.FloatTensor(sim_matrix.data)
