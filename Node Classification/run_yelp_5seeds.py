@@ -1,7 +1,8 @@
-"""Yelp 节点分类 3-seed baseline（README 超参，历史兼容）。
+"""Yelp 节点分类：README 超参 × 五种子（服务器正式复现推荐）。
 
-调用 **`main_yelp.py`**。**服务器正式 5-seed 批量请使用 `run_yelp_5seeds.py`**
-（`results/yelp_5seeds/`）。
+调用 **`main_yelp.py`**。输出：`results/yelp_5seeds/`。
+
+历史 **`run_yelp_3seeds.py`**（`results/yelp_3seeds/`）保留兼容；文档中的 **selected 3-seed** 数值不等于默认 5 seeds。
 """
 from __future__ import annotations
 
@@ -18,9 +19,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_YELP = os.path.join(SCRIPT_DIR, 'main_yelp.py')
 DATA_YELP = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'data', 'Yelp'))
 RESULTS_ROOT = os.path.join(SCRIPT_DIR, 'results')
-OUT_DIR = os.path.join(RESULTS_ROOT, 'yelp_3seeds')
+OUT_DIR = os.path.join(RESULTS_ROOT, 'yelp_5seeds')
 
-DEFAULT_SEEDS = [42, 3407, 2026]
+DEFAULT_SEEDS = [42, 3407, 2026, 6666, 8888]
 
 _RE_BEST = re.compile(
     r'Best Test Macro-F1\s*:\s*([0-9.+-eE]+)\s*,\s*Micro-F1\s*:\s*([0-9.+-eE]+)\s*,\s*Epoch\s*:\s*([-0-9]+)',
@@ -100,10 +101,10 @@ def _fail_subprocess(proc, cmd, log_path):
     print('[FAIL] return_code={}'.format(proc.returncode), file=sys.stderr, flush=True)
     print('[FAIL] cmd:', ' '.join(cmd), file=sys.stderr, flush=True)
     print('[FAIL] log_path:', log_path, file=sys.stderr, flush=True)
-    print('[FAIL] --- stdout ---', file=sys.stderr, flush=True)
-    print(proc.stdout or '(empty)', file=sys.stderr, flush=True)
-    print('[FAIL] --- stderr ---', file=sys.stderr, flush=True)
-    print(proc.stderr or '(empty)', file=sys.stderr, flush=True)
+    print('[FAIL] --- stdout (last 80 lines) ---', file=sys.stderr, flush=True)
+    print(_tail_lines(proc.stdout or '', 80), file=sys.stderr, flush=True)
+    print('[FAIL] --- stderr (last 80 lines) ---', file=sys.stderr, flush=True)
+    print(_tail_lines(proc.stderr or '', 80), file=sys.stderr, flush=True)
     sys.exit(1)
 
 
@@ -125,19 +126,19 @@ def _parse_or_exit(text, log_path):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description='Yelp NC 3-seed baseline (README hyperparameters).')
+    p = argparse.ArgumentParser(description='Yelp NC — formal 5-seed (README hyperparameters).')
     p.add_argument(
         '--seeds',
         type=int,
         nargs='+',
         default=None,
         metavar='SEED',
-        help='随机种子列表；省略则 {}'.format(DEFAULT_SEEDS),
+        help='Random seeds; omit for {}'.format(DEFAULT_SEEDS),
     )
     p.add_argument(
         '--skip_existing',
         action='store_true',
-        help='若 yelp_seed_<seed>.log 已存在且可解析则跳过训练',
+        help='If yelp_seed_<seed>.log exists and parses, skip training',
     )
     return p.parse_args()
 
@@ -234,7 +235,7 @@ def main():
 
     summary_txt = os.path.join(OUT_DIR, 'summary.txt')
     lines = [
-        'Yelp Node Classification — selected seeds (README hyperparameters)',
+        'Yelp Node Classification — README hyperparameters (5-seed formal batch)',
         'seeds (this run): {}'.format(selected_seeds),
         '',
         'Per seed:',

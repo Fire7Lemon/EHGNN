@@ -12,11 +12,34 @@
 
 ## 2. 复现目标
 
-- 在 **PubMed / DBLP** 节点分类上按 `README.md` 或 README 对齐命令运行 **`Node Classification/main.py`**，记录测试集 Macro-F1 / Micro-F1；**Yelp** 走 **`main_yelp.py`**（多标签），selected **3-seed** 汇总见 **`EXPERIMENT_NOTES.md`**（`results/yelp_3seeds/summary.txt`）。  
-- **Link Prediction（PubMed）**：本地 **`run_pubmed_lp_smoke.py`** 仅做管线 smoke；**README 对齐的完整多 seed 训练**计划在 **服务器** 运行（见 **`EXPERIMENT_NOTES.md`** §8）。  
-- PubMed：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP：**selected 3-seed**（`run_dblp_5seeds.py`）。Yelp：**selected 3-seed**（`run_yelp_3seeds.py`）；测试指标跨 seed **完全一致**等现象见 **`EXPERIMENT_NOTES.md`** §4，**不得**解读为强稳定性。  
-- **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）；**完整训练计划在服务器执行**。  
+- 在 **PubMed / DBLP** 节点分类上按 `README.md` 对齐命令运行 **`Node Classification/main.py`**；**Yelp** 走 **`Node Classification/main_yelp.py`**（多标签）。服务器正式 NC 批量默认 **5 seeds**（`run_pubmed_5seeds.py`、`run_dblp_5seeds.py`、`run_yelp_5seeds.py`）；**`results/yelp_3seeds/`** 等为历史 **selected 3-seed**，详见 **`EXPERIMENT_NOTES.md`**，**不得**当作默认 5-seed 正式结论。  
+- **Link Prediction**：本地仅 **`run_*_lp_smoke.py`**（**PubMed / DBLP / Yelp**）做管线 smoke；服务器完整 LP 复现为 **PubMed / DBLP / Yelp 各 5 seeds**，入口分别为 **`main.py`**（PubMed、DBLP）与 **`Link Prediction/main_yelp.py`**（Yelp LP），批量脚本 **`run_*_lp_5seeds.py`**（输出各 `results/*_lp_5seeds/`）。旧版 **`run_pubmed_lp_3seeds.py`** 保留兼容，正式文档以 **`run_pubmed_lp_5seeds.py`** 为准。  
+- PubMed NC：**多 seed**（`run_pubmed_5seeds.py`）、**消融**（`run_pubmed_ablation.py`）。DBLP NC：**`run_dblp_5seeds.py`**（默认或显式 5 seeds）。Yelp NC：**`run_yelp_5seeds.py`**；测试指标跨 seed 完全一致等现象见 **`EXPERIMENT_NOTES.md`** §4，**不得**解读为强稳定性。  
+- **MAG240M**：服务器侧部署说明（`README_MAG240M.md`、`scripts/`）；**完整训练计划在服务器执行**。一键主流程：`scripts/server_run_core_reproduction.sh`（含 MAG240M 校验与 `run_mag240m_server.sh`，日志 `logs/server_core_reproduction.log`）。  
+- **扩展实验（消融 / K / α / walk_num）**：脚本见 **`EXPERIMENT_NOTES.md`** §0；服务器串联：`scripts/server_run_extended_experiments.sh`。Fig.6 / Table IX / Table X 仍为 **TODO**（见 `scripts/TODO_*.md`）。  
 - **不在本分支**：hybrid / temp / `neighbor_strategy` 扫描；相关内容仅在 **`neighbor-strategy-dev`** 与 **`EXPERIMENT_NOTES.md`** 历史小节。
+
+---
+
+## 2.1 论文实验覆盖与执行状态（与代码同步）
+
+状态含义：**Completed** = 本文档 / **`EXPERIMENT_NOTES.md`** 中已有可追溯的 **`results/`** 汇总数字；**Smoke-only** = 仅短跑验证管线；**Prepared** = 仓库已提供脚本与输出目录约定，**数值完成与否待服务器或未声明**；**Partial** = 仅有子集种子或历史切片；**Blocked-TODO** = 文档 **`scripts/TODO_*.md`**，缺入口实现。
+
+| 论文目标 | 脚本 / 产物 | 状态 |
+|----------|-------------|------|
+| Table V PubMed NC | `run_pubmed_5seeds.py` → `pubmed_5seeds/` | **Completed**（见 **`EXPERIMENT_NOTES.md`** §2） |
+| Table V DBLP NC（满 5 seeds） | `run_dblp_5seeds.py` | **Partial**：§6 仍引用历史 **3-seed** 摘录 |
+| Table V Yelp NC（满 5 seeds） | `run_yelp_5seeds.py` → `yelp_5seeds/` | **Prepared**：是否已跑满 **不确定** |
+| Table VI LP（三数据集 × 5 seeds） | `run_*_lp_5seeds.py` | **Prepared**；本地仅 **LP smoke**，非 Table VI |
+| Table VII NC/LP 消融 | `run_nc_ablation_all_datasets.py`、`run_lp_ablation_all_datasets.py` | **Prepared** |
+| Fig.2–3（K） | `run_nc_sensitivity_k.py`、`run_lp_sensitivity_k.py` | **Prepared** |
+| Fig.4–5（α） | `run_nc_sensitivity_alpha.py`、`run_lp_sensitivity_alpha.py` | **Prepared** |
+| Table VIII（walk_num） | `run_nc_sensitivity_walk_num.py`、`run_lp_sensitivity_walk_num.py` | **Prepared** |
+| Fig.6 / Table IX | — | **Blocked-TODO** |
+| Table X（AvgSim / HeteSim） | — | **Blocked-TODO** |
+| Runtime / Memory（Table V/VI 侧） | `Total training time` + `run_server_resource_monitor.sh` | **Partial**：时间可在日志中汇总；**内存无代码内统一字段**，依赖外挂采样 |
+
+**服务器计划**：先 **`scripts/server_run_core_reproduction.sh`**（P0），再 **`scripts/server_run_extended_experiments.sh`**（P1）；详见 **`PROJECT_STRUCTURE_AND_USAGE.md`** §10、`EXPERIMENT_NOTES.md` §0.3。
 
 ---
 
@@ -57,7 +80,7 @@ cd Node Classification
 python main.py --dataset PubMed --path ../data/ --seed 42
 ```
 
-4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`。
+4. 批量复现：`run_pubmed_5seeds.py`、`run_pubmed_ablation.py`。服务器 NC 建议 **`run_pubmed_5seeds.py`** 默认跑满 **5 seeds**。
 
 ### 5.2 DBLP（README 超参；不写 `pubmed_nc_result.txt`）
 
@@ -70,12 +93,12 @@ python main.py --dataset DBLP --path ../data/ --seed <seed> \
   --lr 5e-4 --dropout 0.5 --hidden 512 --n_layers 5 --batch_size 3000 --alpha 0.7 --K 20
 ```
 
-3. 多 seed 汇总（脚本从 stdout 写 `results/dblp_5seeds/`）：`run_dblp_5seeds.py`（支持 `--seeds`、`--skip_existing`）。当前文档记载的 **selected 3-seed** 数值见 **`EXPERIMENT_NOTES.md`** §3。
+3. 多 seed 汇总：`run_dblp_5seeds.py`（默认 **`[42, 3407, 2026, 6666, 8888]`** 或由 **`--seeds`**；**`--skip_existing`**），输出 **`results/dblp_5seeds/`**。**EXPERIMENT_NOTES.md** §3 等处若仍为 **selected 3-seed** 数值，仅为历史切片；**正式服务器命令以完整 5 seeds 为准**。
 
 ### 5.3 Yelp（README 超参；`main_yelp.py`）
 
 1. 将 Yelp 数据放入 **`data/Yelp/`**（与 `utils.load_Yelp` 一致）。  
-2. README 对齐批量脚本：`run_yelp_3seeds.py`（默认或 `--seeds`；可选 `--skip_existing`），输出 **`results/yelp_3seeds/`**。单次示例：
+2. README 对齐批量脚本：**服务器正式推荐 `run_yelp_5seeds.py`**（默认或 **`--seeds`**；可选 **`--skip_existing`**），输出 **`results/yelp_5seeds/`**。历史兼容：**`run_yelp_3seeds.py`** → **`results/yelp_3seeds/`**（**selected 3 seeds**，非正式 5-seed 口径）。单次示例：
 
 ```bash
 cd Node Classification
@@ -83,17 +106,20 @@ python main_yelp.py --dataset Yelp --path ../data/ --seed <seed> \
   --alpha 0.7 --dropout 0.5 --K 20 --lr 0.0003 --hidden 256 --n_layers 4 --batch_size 3000
 ```
 
-3. **selected 3-seed** 数值与 **测试 F1 跨 seed 完全一致等现象**见 **`EXPERIMENT_NOTES.md`** §4。
+3. **测试 F1 跨 seed 完全一致等现象**（含历史 **3-seed** 汇总）见 **`EXPERIMENT_NOTES.md`** §4。
 
-### 5.4 Link Prediction（PubMed）
+### 5.4 Link Prediction（PubMed / DBLP / Yelp）
 
-1. 数据放入 **`data/PubMed/`**（与 **`Link Prediction/utils.load_PubMed`** 一致）。  
-2. **本地 smoke（推荐笔记本）**：在 **`Link Prediction/`** 下 **`python run_pubmed_lp_smoke.py`**；日志 **`results/pubmed_lp_smoke/pubmed_lp_smoke_seed_42.log`**；指标输出中 **`precision`** 对应 **AP（Average Precision，平均精确率）**。  
-3. **服务器完整复现**：使用 **`run_pubmed_lp_3seeds.py`** 或其它方式调用 **`main.py`**，显式传入 **`README.md`** PubMed LP 一行超参及 **`--epochs 100`**（或与论文对齐的 epoch）；多 seed 汇总写入 **`results/pubmed_lp_3seeds/`**。详见 **`EXPERIMENT_NOTES.md`** §8。
+1. 数据放入 **`data/<Dataset>/`**，与 **`Link Prediction/utils`** 中对应加载函数一致。  
+2. **本地 smoke**：在 **`Link Prediction/`** 使用 **`run_pubmed_lp_smoke.py`**、**`run_dblp_lp_smoke.py`**、**`run_yelp_lp_smoke.py`**（各 **`epochs=3`**、**`val_epochs=1`**）；**不作为论文完整复现指标**。  
+3. **服务器 LP（各 5 seeds）**：**`run_pubmed_lp_5seeds.py`**、**`run_dblp_lp_5seeds.py`**、**`run_yelp_lp_5seeds.py`** → **`results/pubmed_lp_5seeds/`** 等；PubMed/DBLP 调 **`main.py`**，Yelp 调 **`Link Prediction/main_yelp.py`**。日志 **`precision`** / **`AP`** = Average Precision。旧 **`run_pubmed_lp_3seeds.py`** 保留兼容。  
+4. **服务器命令清单**：**`EXPERIMENT_NOTES.md`** §8.1、**`PROJECT_STRUCTURE_AND_USAGE.md`**。
 
 ---
 
 ## 6. 主要结果表格（摘自本地 `results/`）
+
+本节数字均为 **历史跑出的快照**；**不得**将 **LP smoke** 或未生成的 **`summary`** 等同于本节。**正式 5-seed / 扩展实验**完成后应更新本节或标明数据来源路径。
 
 详细数值与引用路径见 **`EXPERIMENT_NOTES.md`**。摘要：
 
@@ -135,9 +161,9 @@ python main_yelp.py --dataset Yelp --path ../data/ --seed <seed> \
 | 项目 | 说明 |
 |------|------|
 | MAG240M | **完整训练 / 全量数据**依赖大规模磁盘与内存；本仓库以文档与脚本支持为主，**是否在目标机器完成端到端训练需单独确认** |
-| DBLP | 已有 **selected 3-seed** baseline（§3）；满 5-seed 可后续补跑 |
-| Yelp | 已有 **selected 3-seed** baseline（§4）；测试 **Macro/Micro 跨 seed 数值完全相同**，见 §4 **异常现象**——需区分记录事实与稳定性推断 |
-| Link Prediction | **本地**仅 **`run_pubmed_lp_smoke.py`** smoke；**README 对齐的完整 LP / 多 seed 汇总**计划在 **服务器** 运行（§5.4、**`EXPERIMENT_NOTES.md`** §8） |
+| DBLP | 文档 **`EXPERIMENT_NOTES`** §3 仍为历史 **selected 3-seed**；满 **5-seed** 须 **`run_dblp_5seeds.py` 默认 seeds**，服务器落地后更新摘录 |
+| Yelp | **`results/yelp_3seeds/`** 为历史 **3-seed**；正式 **`run_yelp_5seeds.py`** → **`yelp_5seeds/`** 是否已有全称产出：**不确定** |
+| 扩展实验（Table VII / Fig.2–5 / VIII） | 脚本 **Prepared**；全量 **`results/`** 产物依赖 **`server_run_extended_experiments.sh`** |
 | 论文逐项对齐 | 若课程或审稿要求严格对齐，需逐项核对论文附录中的实现细节与评测协议 |
 
 ---

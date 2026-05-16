@@ -2,7 +2,68 @@
 
 **分支：`reproduce-baseline`。** 本节描述的 **`main.py` 默认行为**为 RW 后 **`Counter.most_common(K)` 频次 Top-K**；**不包含** `neighbor_strategy` / hybrid / temp 等 CLI。**邻居策略相关脚本与代码均在分支 `neighbor-strategy-dev`。**
 
-以下内容摘自本机 **`Node Classification/results/`** 下已有汇总文件（2026-05 左右及后续补充）。**仅代表各节所列数据集、默认或 README 对齐设定与所列种子切片**；不向其它数据集或论文表格做强泛化推断。
+以下内容摘自本机 **`Node Classification/results/`** 下已有汇总文件（2026-05 左右及后续补充）。**最新脚本映射、smoke 记录口径与服务器计划见 §0**；§2 起的表格仅代表所列快照。**不向其它数据集或论文表格做强泛化推断**。
+
+---
+
+## 0. 论文实验覆盖矩阵（脚本映射）
+
+| 论文内容 | 仓库脚本 / 说明 |
+|----------|----------------|
+| **Table V**（NC 主结果） | `Node Classification/run_pubmed_5seeds.py`、`run_dblp_5seeds.py`、`run_yelp_5seeds.py`（默认 5 seeds） |
+| **Table VI**（LP 主结果） | `Link Prediction/run_*_lp_5seeds.py` |
+| **Table VII**（消融） | `Node Classification/run_nc_ablation_all_datasets.py`、`Link Prediction/run_lp_ablation_all_datasets.py` |
+| **Fig.2**（K → NC） | `Node Classification/run_nc_sensitivity_k.py` |
+| **Fig.3**（K → LP） | `Link Prediction/run_lp_sensitivity_k.py` |
+| **Fig.4**（α → NC） | `Node Classification/run_nc_sensitivity_alpha.py` |
+| **Fig.5**（α → LP） | `Link Prediction/run_lp_sensitivity_alpha.py` |
+| **Table VIII**（walk_num / w） | `Node Classification/run_nc_sensitivity_walk_num.py`、`Link Prediction/run_lp_sensitivity_walk_num.py` |
+| **Fig.6**（meta-path 数量） | **未实现自动化**：见 `scripts/TODO_metapath_experiments.md` |
+| **Table IX**（meta-path 权重） | **未实现自动化**：同上 |
+| **Table X**（HPPR strategy） | **未实现**：见 `scripts/TODO_hppr_strategy_study.md` |
+| **Table V/VI Runtime / Memory** | 训练日志：`Total training time`；内存：**无内置 profiler**，用 `scripts/run_server_resource_monitor.sh` 外挂采样 |
+| **汇总索引** | `python scripts/collect_result_summaries.py` → 仓库根 `results/ALL_SUMMARIES_INDEX.md`（目录由 **`**/results/`** 规则忽略，不提交 Git） |
+
+### 0.1 执行状态说明（与「已完成数值」区分）
+
+下列状态按 **代码里已有脚本 + 本文档记载的本地产物** 判断；**未在下列写明「已有 summary」的 = Prepared（脚本就绪，尚未 Claim 数值完成）**。
+
+| 条目 | 状态 | 说明 |
+|------|------|------|
+| PubMed NC 5-seed | **Completed（数值已有）** | 见 §2，`results/pubmed_5seeds/` 汇总曾为本地跑出 |
+| DBLP NC **`run_dblp_5seeds.py` 满 5 seeds** | **Partial / 待服务器验证** | 文档 §3 数字仍为历史 **selected 3 seeds**，不等于默认 5-seed 正式结论 |
+| Yelp NC **`run_yelp_5seeds.py` 满 5 seeds** | **Prepared** | **`results/yelp_5seeds/`** 是否已全部生成：**不确定**，待服务器 |
+| PubMed LP **正式 5-seed** | **Prepared** | 管线曾有 PubMed LP smoke；**完整 LP 多 seed 非 smoke**，数值完成与否 **待服务器验证** |
+| DBLP / Yelp LP smoke | **Prepared** | **是否在每台本地机器跑通**：不确定；OOM/耗时属 **资源限制**，不作失败结论 |
+| LP / NC **消融与敏感性** 脚本 | **Prepared** | 输出目录见 **`PROJECT_STRUCTURE_AND_USAGE.md`** §7；跑完全程依赖服务器 |
+| Fig.6 / Table IX / Table X | **Blocked-TODO** | 仅文档规划，无本分支一键脚本 |
+
+**口径**：**Smoke ≠ 论文主结果**；**3 seeds ≠ 5 seeds**；本地跑不完 **≠** 方法失败，记为 **资源或待服务器**。
+
+---
+
+### 0.2 本地 smoke test（Link Prediction）
+
+| 脚本 | 已知记录 |
+|------|----------|
+| `run_pubmed_lp_smoke.py` | 曾有「管线跑通」记录（极少 epoch）；**不**据此宣称 Table VI 复现完成 |
+| `run_dblp_lp_smoke.py`、`run_yelp_lp_smoke.py` | **未全员验证**：笔记本可能存在 **OOM / 过长预计算**；归 **待服务器或高配验证**，不作为负面结论 |
+
+**README LP** 未写 **`walk_num`**：LP 入口默认 **`--walk_num 100`**；敏感性脚本 **显式传 `--walk_num`**。是否与论文 Table VIII 默认叙述完全一致：**不确定**，以服务器跑出对照为准。
+
+---
+
+### 0.3 服务器待跑 / TODO 清单
+
+| 优先级 | 内容 |
+|--------|------|
+| P0 | `scripts/server_run_core_reproduction.sh`：NC/LP 主结果 + MAG240M 校验与启动脚本链 |
+| P1 | `scripts/server_run_extended_experiments.sh`：Table VII / Fig.2–5 / Table VIII 批量脚本 |
+| P2 | `scripts/run_server_resource_monitor.sh`：长跑配套资源日志 |
+| P3 | `collect_result_summaries.py`：跑完后生成索引 Markdown |
+| 阻塞项 | Fig.6、Table IX、Table X：`scripts/TODO_*.md`，需后续最小代码补丁才可一键复现 |
+
+**阶段说明**：本地只做 smoke / 既有快照记录；**正式论文对齐批量实验默认服务器 + 5 seeds**。详见 **`PROJECT_STRUCTURE_AND_USAGE.md`** §10。
 
 ---
 
@@ -125,12 +186,72 @@ python main.py --dataset PubMed --seed 42
 
 ---
 
-## 8. Link Prediction（PubMed）：本地 smoke test 与服务器完整复现
+## 8. Link Prediction：本地只做 smoke；服务器统一 5 seeds
 
-- **本地（笔记本类环境）**：**只做 smoke**，验证数据加载、meta-path RW 预计算、训练与评测日志链路；**不建议**在此跑 **`README.md`** 默认 **100 epoch** 的完整 PubMed LP（CPU/RW 与训练耗时过长）。典型资源约束示例：**约 16GB RAM**、长时间 CPU 计算。
-- **Smoke 脚本**：在 **`Link Prediction/`** 下运行 **`python run_pubmed_lp_smoke.py`**，README PubMed LP 超参 + **`--epochs 3`**、**`--val_epochs 1`**，日志：`results/pubmed_lp_smoke/pubmed_lp_smoke_seed_42.log`。日志中 `precision` 实际对应 **AP（Average Precision，平均精确率）**（见 **`Link Prediction/utils.py`**）。
-- **服务器**：完整 **3-seed**（或后续扩展 **5-seed**）与 **`README.md`** 对齐 epoch 的 PubMed LP，计划在 **GPU/高内存** 机器上使用 **`run_pubmed_lp_3seeds.py`**（或等价显式 **`main.py --epochs 100`**）执行。
-- **MAG240M**：大规模节点分类仍按 **`README_MAG240M.md`** 在 **Linux 服务器** 部署与训练（本地不占位跑全量）。
+**口径**：本地阶段 **只做 smoke test** 或少量 selected seeds，用于验证管线与日志格式；**不把 smoke 输出当作论文完整复现指标**。服务器正式复现实验 **默认跑统一 5 seeds**：`[42, 3407, 2026, 6666, 8888]`。
+
+**日志解析**：批量脚本统一解析文末三行 **`Best Test AUC …, AP …, Epoch …`**、**`Final Epoch …`**、**`Total training time: … s`**。训练步内的 **`precision`** 与文末 **`AP`** 均指 **Average Precision（平均精确率）**，不是 Accuracy。
+
+**本地 smoke（`epochs=3`，`val_epochs=1`，`seed=42`，不追求论文指标）**，均在 **`Link Prediction/`** 下：
+
+| 数据集 | 脚本 | 日志目录 |
+|--------|------|----------|
+| PubMed | `python run_pubmed_lp_smoke.py` | `results/pubmed_lp_smoke/` |
+| DBLP | `python run_dblp_lp_smoke.py` | `results/dblp_lp_smoke/` |
+| Yelp | `python run_yelp_lp_smoke.py`（调用 **`main_yelp.py`**） | `results/yelp_lp_smoke/` |
+
+**README.md** LP 表未给出 **`walk_num`**：**Link Prediction** 入口默认 **`--walk_num 100`**（见 `main.py` / `main_yelp.py`）。是否与论文 Table VIII 中叙述的默认 \(w\) 完全一致：**不确定**；敏感性脚本 **`run_lp_sensitivity_walk_num.py`** 通过 **`--walk_num`** 显式扫描。**Node Classification** 默认 **`walk_num=40`**，与 LP 不同。
+
+**服务器正式 Link Prediction（汇总 `summary.csv` / `summary.txt`）**——推荐脚本（旧版 **`run_pubmed_lp_3seeds.py`** 仅历史兼容，正式文档以 **`*_lp_5seeds.py`** 为准）：
+
+| 数据集 | 脚本 | 输出目录 |
+|--------|------|----------|
+| PubMed | `python run_pubmed_lp_5seeds.py` | `results/pubmed_lp_5seeds/` |
+| DBLP | `python run_dblp_lp_5seeds.py` | `results/dblp_lp_5seeds/` |
+| Yelp | `python run_yelp_lp_5seeds.py` | `results/yelp_lp_5seeds/` |
+
+**Link Prediction 完整实验计划（服务器）**：PubMed LP **5 seeds** + DBLP LP **5 seeds** + Yelp LP **5 seeds**。
+
+**Node Classification 完整实验计划（服务器）**：PubMed NC **`run_pubmed_5seeds.py`** + DBLP NC **`run_dblp_5seeds.py`** + Yelp NC **`run_yelp_5seeds.py`**（默认 5 seeds）。历史 **`run_yelp_3seeds.py`** / **`results/yelp_3seeds/`** 等为 **selected 3 seeds**，**不得**写成正式 5-seed 结论。
+
+**MAG240M**：仍按 **`README_MAG240M.md`** 与根目录 **`scripts/`** 在 **Linux 服务器** 部署；本地不占位跑全量。
+
+### 8.1 服务器批量命令摘录（与 `PROJECT_STRUCTURE_AND_USAGE.md` 一致）
+
+**Node Classification**
+
+```bash
+cd ~/EHGNN/"Node Classification"
+conda activate ehgnn
+
+python run_pubmed_5seeds.py
+python run_dblp_5seeds.py --seeds 42 3407 2026 6666 8888 --skip_existing
+python run_yelp_5seeds.py --seeds 42 3407 2026 6666 8888 --skip_existing
+```
+
+**Link Prediction**
+
+```bash
+cd ~/EHGNN/"Link Prediction"
+conda activate ehgnn
+
+python run_pubmed_lp_5seeds.py --seeds 42 3407 2026 6666 8888 --skip_existing
+python run_dblp_lp_5seeds.py --seeds 42 3407 2026 6666 8888 --skip_existing
+python run_yelp_lp_5seeds.py --seeds 42 3407 2026 6666 8888 --skip_existing
+```
+
+**MAG240M**
+
+```bash
+cd ~/EHGNN
+conda activate ehgnn
+
+export MAG240_DATA_ROOT="$HOME/data"
+python scripts/check_mag240m_data.py --root "$MAG240_DATA_ROOT"
+
+chmod +x scripts/run_mag240m_server.sh
+./scripts/run_mag240m_server.sh
+```
 
 ---
 
@@ -138,6 +259,9 @@ python main.py --dataset PubMed --seed 42
 
 | 方向 | 说明 |
 |------|------|
-| DBLP / Yelp / MAG240M | 在本分支口径下复现或对齐论文设置 |
+| DBLP / Yelp NC/LP **满 5-seed** | 服务器执行 **`run_*_5seeds.py`**，替换 §3 / §4 中仅为 historical **3-seed** 写的摘录时需标明数据来源 |
+| 消融 / 敏感性（§0） | 服务器 **`server_run_extended_experiments.sh`**；产出写入对应 **`results/`** 子目录（不入 Git） |
+| MAG240M | 资源门槛高；是否端到端完成 **待服务器确认** |
+| Fig.6 / IX / X | **`scripts/TODO_metapath_experiments.md`**、**`TODO_hppr_strategy_study.md`** |
 | 邻居策略研究 | 切换到 **`neighbor-strategy-dev`** 分支阅读脚本与历史 `results/` |
 | 统计严谨性 | PubMed 测试集较小，可多 seed、报告置信区间或与论文表对齐的设定 |

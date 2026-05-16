@@ -1,9 +1,9 @@
-"""PubMed Link Prediction：README 超参 × 多种子，调用现有 main.py（历史兼容）。
+"""PubMed Link Prediction：README LP 超参 × 五种子（服务器正式复现推荐）。
 
-输出：`results/pubmed_lp_3seeds/`。**服务器正式批量复现请以 `run_pubmed_lp_5seeds.py` 为准**
-（默认 seeds [42, 3407, 2026, 6666, 8888]）。
+调用 **`main.py`**。默认 seeds = [42, 3407, 2026, 6666, 8888]；历史 **`run_pubmed_lp_3seeds.py`** 仍保留兼容。
 
-指标从 stdout 解析；不依赖 Node Classification。"""
+输出：`results/pubmed_lp_5seeds/` 下各 seed 日志、`summary.csv`、`summary.txt`。
+日志中 **`precision`** 与 **`AP`** 均指 Average Precision（平均精确率），非 Accuracy。"""
 from __future__ import annotations
 
 import argparse
@@ -19,9 +19,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_PY = os.path.join(SCRIPT_DIR, 'main.py')
 DATA_PUBMED = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'data', 'PubMed'))
 RESULTS_ROOT = os.path.join(SCRIPT_DIR, 'results')
-OUT_DIR = os.path.join(RESULTS_ROOT, 'pubmed_lp_3seeds')
+OUT_DIR = os.path.join(RESULTS_ROOT, 'pubmed_lp_5seeds')
 
-DEFAULT_SEEDS = [42, 3407, 2026]
+DEFAULT_SEEDS = [42, 3407, 2026, 6666, 8888]
 
 README_LP_CMD = [
     '--dataset', 'PubMed',
@@ -94,10 +94,10 @@ def _tail_lines(text, n_lines=80):
 def _fail(proc, cmd):
     print('[FAIL] return_code={}'.format(proc.returncode), file=sys.stderr, flush=True)
     print('[FAIL] cmd:', ' '.join(cmd), file=sys.stderr, flush=True)
-    print('[FAIL] --- stdout (tail) ---', file=sys.stderr, flush=True)
-    print(_tail_lines(proc.stdout or ''), file=sys.stderr, flush=True)
-    print('[FAIL] --- stderr (tail) ---', file=sys.stderr, flush=True)
-    print(_tail_lines(proc.stderr or ''), file=sys.stderr, flush=True)
+    print('[FAIL] --- stdout (last 80 lines) ---', file=sys.stderr, flush=True)
+    print(_tail_lines(proc.stdout or '', 80), file=sys.stderr, flush=True)
+    print('[FAIL] --- stderr (last 80 lines) ---', file=sys.stderr, flush=True)
+    print(_tail_lines(proc.stderr or '', 80), file=sys.stderr, flush=True)
     sys.exit(proc.returncode if proc.returncode != 0 else 1)
 
 
@@ -125,12 +125,9 @@ def _parse_metrics_dict(text):
 def parse_main_output(text, log_path_for_error):
     metrics = _parse_metrics_dict(text)
     if metrics is None:
-        print(
-            'ERROR: failed to parse metrics. log={}'.format(log_path_for_error),
-            file=sys.stderr,
-            flush=True,
-        )
-        print('--- log/output (last 80 lines) ---', file=sys.stderr, flush=True)
+        print('[FAIL] parse_main_output: missing Best/Final/Total lines', file=sys.stderr, flush=True)
+        print('[FAIL] log_path:', log_path_for_error, file=sys.stderr, flush=True)
+        print('[FAIL] --- merged output (last 80 lines) ---', file=sys.stderr, flush=True)
         print(_tail_lines(text or '', 80), file=sys.stderr, flush=True)
         sys.exit(1)
     return metrics
@@ -155,14 +152,14 @@ def _std_ddof1_safe(values):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='PubMed Link Prediction multi-seed (README hyperparameters)')
+    ap = argparse.ArgumentParser(description='PubMed Link Prediction — formal 5-seed reproduction (README LP)')
     ap.add_argument(
         '--seeds',
         type=int,
         nargs='+',
-        default=list(DEFAULT_SEEDS),
+        default=None,
         metavar='SEED',
-        help='Random seeds (default: %(default)s)',
+        help='Random seeds (default: {})'.format(DEFAULT_SEEDS),
     )
     ap.add_argument(
         '--skip_existing',
@@ -170,7 +167,7 @@ def main():
         help='If log exists and parses, skip re-run',
     )
     args_cli = ap.parse_args()
-    seeds = list(args_cli.seeds)
+    seeds = list(args_cli.seeds) if args_cli.seeds is not None else list(DEFAULT_SEEDS)
     skip_existing = args_cli.skip_existing
 
     _preflight_or_exit()
@@ -221,51 +218,51 @@ def main():
         for r in rows:
             w.writerow({k: r[k] for k in CSV_FIELDNAMES})
 
-    aucs = [r['best_test_auc'] for r in rows]
-    aps = [r['best_test_ap'] for r in rows]
-    mean_auc = float(np.mean(aucs)) if aucs else float('nan')
-    mean_ap = float(np.mean(aps)) if aps else float('nan')
-    std_auc = _std_ddof1_safe(aucs)
-    std_ap = _std_ddof1_safe(aps)
-    avg_time = float(np.mean([r['total_training_time_sec'] for r in rows])) if rows else float('nan')
+    bauc = [r['best_test_auc'] for r in rows]
+    bap = [r['best_test_ap'] for r in rows]
+    fauc = [r['final_test_auc'] for r in rows]
+    fap = [r['final_test_ap'] for r in rows]
+    tt = [r['total_training_time_sec'] for r in rows]
 
-    ibest = int(np.argmax(aucs)) if aucs else -1
-    iworst = int(np.argmin(aucs)) if aucs else -1
+    mean_bauc = float(np.mean(bauc)) if bauc else float('nan')
+    mean_bap = float(np.mean(bap)) if bap else float('nan')
+    mean_fauc = float(np.mean(fauc)) if fauc else float('nan')
+    mean_fap = float(np.mean(fap)) if fap else float('nan')
+    std_bauc = _std_ddof1_safe(bauc)
+    std_bap = _std_ddof1_safe(bap)
+    std_fauc = _std_ddof1_safe(fauc)
+    std_fap = _std_ddof1_safe(fap)
+    avg_time = float(np.mean(tt)) if tt else float('nan')
+
+    ibest = int(np.argmax(bauc)) if bauc else -1
+    iworst = int(np.argmin(bauc)) if bauc else -1
     best_seed = rows[ibest]['seed'] if ibest >= 0 else None
     worst_seed = rows[iworst]['seed'] if iworst >= 0 else None
 
-    def fmt_pm(mean, std):
-        if len(seeds) <= 1:
-            return '{:.6f} ± {:.6f}'.format(mean, std)
-        return '{:.6f} ± {:.6f}'.format(mean, std)
-
     lines = [
-        'PubMed Link Prediction — README hyperparameters',
-        'seeds: {}'.format(seeds),
-        'best tracked by Test AUC during training (tie-break by AP); worst seed = lowest best_test_auc',
+        'PubMed Link Prediction — README LP hyperparameters',
+        'seeds (this run): {}'.format(seeds),
+        'Best tracked by Test AUC during training (tie-break by AP); worst seed = lowest best_test_auc.',
         '',
         'Per seed:',
-        'seed\tbest_auc\tbest_ap\tbest_epoch\tfinal_auc\tfinal_ap\ttrain_time_s',
+        'seed\tbest_test_auc\tbest_test_ap\tbest_epoch\tfinal_epoch\tfinal_test_auc\tfinal_test_ap\ttotal_training_time_sec',
     ]
     for r in rows:
         lines.append(
-            '{}\t{:.6f}\t{:.6f}\t{}\t{:.6f}\t{:.6f}\t{:.4f}'.format(
-                r['seed'],
-                r['best_test_auc'],
-                r['best_test_ap'],
-                r['best_epoch'],
-                r['final_test_auc'],
-                r['final_test_ap'],
-                r['total_training_time_sec'],
-            ),
+            '{seed}\t{best_test_auc:.6f}\t{best_test_ap:.6f}\t{best_epoch}\t{final_epoch}\t'
+            '{final_test_auc:.6f}\t{final_test_ap:.6f}\t{total_training_time_sec:.4f}'.format(**r),
         )
     lines.extend([
         '',
-        'Aggregate best_test_auc: {}'.format(fmt_pm(mean_auc, std_auc)),
-        'Aggregate best_test_ap:  {}'.format(fmt_pm(mean_ap, std_ap)),
-        'Average total_training_time_sec: {:.4f}'.format(avg_time),
-        'Best seed (by best_test_auc): {}'.format(best_seed),
-        'Worst seed (by best_test_auc): {}'.format(worst_seed),
+        'Aggregate (sample std ddof=1; single seed → std = 0)',
+        'best_test_auc  {:.6f} ± {:.6f}'.format(mean_bauc, std_bauc),
+        'best_test_ap    {:.6f} ± {:.6f}'.format(mean_bap, std_bap),
+        'final_test_auc  {:.6f} ± {:.6f}'.format(mean_fauc, std_fauc),
+        'final_test_ap   {:.6f} ± {:.6f}'.format(mean_fap, std_fap),
+        'average training time (s) {:.4f}'.format(avg_time),
+        '',
+        'best seed (by best_test_auc):  {}'.format(best_seed),
+        'worst seed (by best_test_auc): {}'.format(worst_seed),
         '',
         OUT_DIR,
         csv_path,

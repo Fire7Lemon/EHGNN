@@ -1,15 +1,10 @@
-"""PubMed Link Prediction 本地 smoke test：极少 epoch，打通 README 超参与日志管线。
+"""Yelp Link Prediction 本地 smoke：epochs=3、val_epochs=1、seed=42，README LP 超参。
 
-README.md Link Prediction 表未列出 walk_num；本 smoke 沿用 main.py 默认 --walk_num 100，若与论文不一致请人工复核。
+README.md Link Prediction 表未列出 walk_num；本 smoke 沿用 main_yelp.py 默认 --walk_num 100，
+若与论文不一致请人工复核。
 
-本脚本不写汇总 CSV；服务器正式多 seed 复现请使用 **`run_pubmed_lp_5seeds.py`**（`README.md` 表内 LP 超参与 `main.py` 默认 `--epochs`）。
-
-成功标准（日志中建议包含）：
-- `Done Load Data`、`Done my sim`、`Begin Train`
-- 至少一次 `Test auc` / `precision`（**precision** = AP），或文末 **`Best Test AUC`** / **`Final Epoch`** / **`Total training time`**
-
-脚本退出后若上述不完整会打印 **[WARN]**（仍以 main.py 退出码为准）。
-"""
+调用 **`main_yelp.py`**。服务器完整复现使用 **`run_yelp_lp_5seeds.py`**。
+步级日志 **`precision`** = AP。"""
 from __future__ import annotations
 
 import os
@@ -17,10 +12,10 @@ import subprocess
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-MAIN_PY = os.path.join(SCRIPT_DIR, 'main.py')
-DATA_PUBMED = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'data', 'PubMed'))
-OUT_DIR = os.path.join(SCRIPT_DIR, 'results', 'pubmed_lp_smoke')
-LOG_PATH = os.path.join(OUT_DIR, 'pubmed_lp_smoke_seed_42.log')
+MAIN_YELP = os.path.join(SCRIPT_DIR, 'main_yelp.py')
+DATA_YELP = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'data', 'Yelp'))
+OUT_DIR = os.path.join(SCRIPT_DIR, 'results', 'yelp_lp_smoke')
+LOG_PATH = os.path.join(OUT_DIR, 'yelp_lp_smoke_seed_42.log')
 
 CORE_MARKERS = (
     'Done Load Data',
@@ -30,16 +25,11 @@ CORE_MARKERS = (
 
 
 def _preflight_or_exit():
-    if not os.path.isfile(MAIN_PY):
-        print('ERROR: main.py not found at {}'.format(MAIN_PY), file=sys.stderr, flush=True)
+    if not os.path.isfile(MAIN_YELP):
+        print('ERROR: main_yelp.py not found at {}'.format(MAIN_YELP), file=sys.stderr, flush=True)
         sys.exit(1)
-    if not os.path.isdir(DATA_PUBMED):
-        print(
-            'ERROR: PubMed data directory not found: {}'.format(DATA_PUBMED),
-            file=sys.stderr,
-            flush=True,
-        )
-        print('Place PubMed under EHGNN/data/PubMed (see README.md).', file=sys.stderr, flush=True)
+    if not os.path.isdir(DATA_YELP):
+        print('ERROR: Yelp data directory not found: {}'.format(DATA_YELP), file=sys.stderr, flush=True)
         sys.exit(1)
 
 
@@ -58,8 +48,8 @@ def main():
 
     cmd = [
         sys.executable,
-        MAIN_PY,
-        '--dataset', 'PubMed',
+        MAIN_YELP,
+        '--dataset', 'Yelp',
         '--path', '../data/',
         '--seed', '42',
         '--epochs', '3',
@@ -70,7 +60,7 @@ def main():
         '--dropout', '0.5',
         '--hidden', '256',
         '--n_layers', '4',
-        '--batch_size', '40',
+        '--batch_size', '100',
     ]
 
     print('[SMOKE] cwd=', SCRIPT_DIR, flush=True)
@@ -106,19 +96,14 @@ def main():
     missing_core = [h for h in CORE_MARKERS if h not in text]
     has_metric_line = ('Test auc' in text) or ('Best Test AUC' in text)
     if missing_core or not has_metric_line:
-        print(
-            '[WARN] Smoke finished exit 0 but log may be incomplete. '
-            'Check markers / metrics manually:',
-            LOG_PATH,
-            flush=True,
-        )
+        print('[WARN] Smoke finished exit 0 but log may be incomplete. Check:', LOG_PATH, flush=True)
         if missing_core:
             print('[WARN] missing:', missing_core, flush=True)
         if not has_metric_line:
             print('[WARN] no Test auc nor Best Test AUC line found', flush=True)
 
     print('[OK] wrote', LOG_PATH, flush=True)
-    print(_tail_lines(proc.stdout or merged, 40))
+    print(_tail_lines(proc.stdout or merged, 25))
 
 
 if __name__ == '__main__':
