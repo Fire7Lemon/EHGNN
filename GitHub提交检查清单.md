@@ -12,7 +12,7 @@
 | 密钥 | 无 `.env`、token、私钥路径写入仓库 |
 | IDE | `.idea/`、`.vscode/` 应由 `.gitignore` 忽略 |
 | 子目录 | `Node Classification/results/`、`Link Prediction/results/`、**仓库根 `results/`**、`data/` 不应出现在暂存列表中 |
-| Conda / venv | **`conda env`**、**`~/miniconda3/envs/`** 等环境目录**不在** Git 仓库中；clone 后须按 **`环境配置说明.md`** 自建环境 |
+| Conda / venv | **`environment.yml`**（若已跟踪）会随 clone 到达本地，但 **conda 环境目录**（如 **`~/miniconda3/envs/ehgnn/`**）**不在**仓库内；clone 后须按 **`环境配置说明.md`** 自行 **`conda env create`** 或等价步骤创建环境 |
 | 服务器日志 | **`logs/`**、**`*.log`** 已列入 `.gitignore`，勿强行 `-f` 提交 |
 | 大文件 | `data/*.zip`、数据集目录若在仓库内且未被忽略，需移出或用 Git LFS（本仓库推荐：**保持 data 在盘、不进 Git**） |
 
@@ -26,7 +26,7 @@
 | 实验结果 | **`**/results/`**（含 **`Node Classification/results/`**、**`Link Prediction/results/`**、仓库根 **`results/`**，后者可由 **`collect_result_summaries.py`** 生成 **`ALL_SUMMARIES_INDEX.md`**） |
 | Python 缓存 | `__pycache__/`、`*.pyc` |
 | IDE | `.idea/`、`.vscode/` |
-| 环境 | `.venv/`、`venv/`、`env/`、**本机/服务器上的 conda 环境目录**（不在仓库内，勿尝试提交） |
+| 环境目录与解释器缓存 | **`.venv/`**、**`venv/`**、**`env/`**；本机或服务器上的 **conda 环境目录**（含各 **`envs/`** 下具体环境）；**`miniconda3/`** / **`anaconda3/`** 等安装根目录及其 **`site-packages`**（勿将整个 conda 安装复制进仓库） |
 | 密钥与环境变量文件 | `.env` |
 | 模型 checkpoint | `*.pt`、`*.pth`、`*.ckpt`、`checkpoints/`、`runs/`、`outputs/` |
 | 日志 | `logs/`、`*.log` |
@@ -45,6 +45,7 @@
 | 顶层说明 | **`README.md`**（原版）、**`MAG240M运行说明.md`** |
 | 环境与数据（clone 后必读） | **`环境配置说明.md`**（conda / CUDA / PyTorch-DGL / **`data/`、`results/` 不同步**） |
 | 实验与结构文档 | **`项目结构与使用说明.md`**、**`实验记录.md`**、**`论文复现报告.md`**、**`GitHub提交检查清单.md`** |
+| 环境与依赖规格（参考） | **`environment.yml`**（conda 环境规格参考，**应提交**）；**`requirements-freeze.txt`**（本机 pip freeze 版本快照，**可提交**作对照，仍须按服务器 CUDA 选型安装 GPU 相关包） |
 | Git 忽略规则 | **`.gitignore`** |
 
 **实验数值**：以 **`实验记录.md`** / **`论文复现报告.md`** 中记载的路径与快照为准；原始 **`results/`**、汇总索引 **`results/ALL_SUMMARIES_INDEX.md`** 保留在本地或服务器私有备份，**不提交**。
@@ -54,9 +55,12 @@
 ## 4. 中文文档与产物提交原则（同步更新）
 
 - **应提交**：根目录下中文 **`*.md`** 说明文档（含 **`README.md`**）、**`MAG240M运行说明.md`**、**`环境配置说明.md`**、`scripts/` 下源码与 **`TODO_*.md`** 等（见 §3）。
-- **不要提交**：**`data/`**、任一 **`results/`**、**`logs/`**、**`*.log`**；本机或服务器上的 **conda 环境目录**（不在仓库内）。
+- **应提交**：**`environment.yml`**（conda 环境规格参考，便于他人在服务器上 **`conda env create -f environment.yml`**）。
+- **可以提交**：**`requirements-freeze.txt`**（本机 **`ehgnn`** 环境的 pip 版本快照，便于排查环境差异）；**不应**视为在服务器上 **`pip install -r`** 的唯一依据，尤其 **PyTorch / DGL / torch-scatter** 须按目标机 CUDA 与官方 wheel 重新选型（详见 **`环境配置说明.md`** 中 **`environment.yml` 与 requirements-freeze.txt 的作用**）。
+- **不要提交**：本机或服务器上的 **conda 环境目录本身**（不在仓库内；clone 不会复制已安装环境）。
+- **不要提交**：**`.venv/`**、**`venv/`**、**`env/`**，以及误拷贝进仓库的 **`miniconda3/`** / **`anaconda3/`** 安装树、任意 **`site-packages`** 路径。
+- **不要提交**：**`data/`**、任一 **`results/`**、**`logs/`**、**`*.log`**。
 - **不要提交**：模型权重与 checkpoint：**`*.pt`**、**`*.pth`**、**`*.ckpt`**、`checkpoints/` 等（见 §2）。
-- **可选提交**：若日后在仓库根目录增加 **`environment.yml`** 或 **`requirements-freeze.txt`**（或同类冻结依赖列表），可作为环境参考；仍须结合 **`环境配置说明.md`** 按服务器 CUDA 选型，**不能**替代手动核对 PyTorch/DGL 轮子。
 
 ---
 
@@ -68,6 +72,7 @@ git status
 git add README.md MAG240M运行说明.md 环境配置说明.md \
   项目结构与使用说明.md 实验记录.md \
   论文复现报告.md GitHub提交检查清单.md \
+  environment.yml requirements-freeze.txt \
   .gitignore \
   "Node Classification/" "Link Prediction/" MAG240M/ scripts/
 
