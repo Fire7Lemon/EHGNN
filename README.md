@@ -19,3 +19,16 @@ To conduct the experiments, please execute `main.py` in each folder (Node Classi
 | Link Prediction | PubMed | 0.1 | 20  | 3e-4 | 0.5 | 256 | 4   | 40  |
 |     | Yelp | 0.1 | 20  | 3e-4 | 0.5 | 256 | 4   | 100 |
 |     | DBLP | 0.7 | 20  | 5e-4 | 0.5 | 512 | 5   | 1000 |
+
+## 项目文档导航
+
+面向中文读者：仓库内主要说明文档已使用中文文件名（**`README.md`** 仍为 GitHub 默认首页，保持英文文件名）。
+
+| 文档 | 说明 |
+|------|------|
+| [项目结构与使用说明](项目结构与使用说明.md) | 说明项目目录、任务入口、运行脚本和结果目录 |
+| [实验记录](实验记录.md) | 记录本地 smoke test、selected seeds、服务器待跑实验和异常现象 |
+| [论文复现报告](论文复现报告.md) | 面向论文复现进度的正式说明 |
+| [环境配置说明](环境配置说明.md) | 说明服务器环境、conda、PyTorch / DGL / torch-scatter、data/results 同步问题 |
+| [GitHub提交检查清单](GitHub提交检查清单.md) | 提交前检查哪些文件应该提交、哪些不应提交 |
+| [MAG240M运行说明](MAG240M运行说明.md) | MAG240M 数据下载、校验和服务器运行说明 |

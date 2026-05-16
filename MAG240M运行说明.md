@@ -168,5 +168,5 @@ chmod +x scripts/run_mag240m_server.sh   # 仅需一次
 
 ## 九、与 Node Classification / Link Prediction 的关系
 
-本指南 **仅** 涉及 **MAG240M** 子目录与仓库根目录下的 `README_MAG240M.md`、`scripts/`。  
+本指南 **仅** 涉及 **MAG240M** 子目录与仓库根目录下的 **`MAG240M运行说明.md`**、`scripts/`。  
 PubMed 等已在 **Node Classification** 中稳定的脚本 **不在此修改范围内**。
