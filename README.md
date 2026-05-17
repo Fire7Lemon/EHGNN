@@ -6,6 +6,19 @@ An implementation for the paper--Efficient Learning for Billion-scale Heterogene
 
 The three datasets used in the paper (PubMed, Yelp and DBLP) can be downloaded from [here](https://drive.google.com/drive/folders/186u90Y0gzmdI-R6gQEOis1Nip6G759rv?usp=drive_link). In addition, the OGB-MAG240M dataset can be found [here](https://ogb.stanford.edu/docs/lsc/mag240m/). Please place the downloaded datasets in the `../data`.
 
+### Core reproduction status（server archive）
+
+Archive directory（本仓库示例）：**`server_results/2026-05-16_core_reproduction/`**（core reproduction only；**不含**消融 / 敏感性批量）。综述：**`核心结果总结.md`**；详细表格见 **`docs/实验记录.md`** §0.4、**`docs/论文复现报告.md`** §6。
+
+| Component | Status |
+|-----------|--------|
+| PubMed / DBLP / Yelp Node Classification（5 seeds） | **Done**（Macro-F1 / Micro-F1 汇总见文档） |
+| PubMed Link Prediction（5 seeds） | **Done**（AUC / AP 汇总见文档） |
+| DBLP Link Prediction（5 seeds） | **Incomplete**：`server_core_reproduction.log` reports **`return_code=-15`**；only partial **`dblp_lp_seed_42.log`**；**no** `summary` — treat as **run interruption / rerun needed**（not a method-failure claim） |
+| Yelp Link Prediction（5 seeds） | **Missing** in this archive |
+| MAG240M | **Missing** in this archive |
+| Ablation / sensitivity（Table VII / Fig.2–5 / Table VIII） | **Not run** in this core batch（extended scripts **Prepared**） |
+
 ### Usage
 
 To conduct the experiments, please execute `main.py` in each folder (Node Classification, Link Prediction, and MAG240M). Hyperparameters can be explored within the `main.py`, and here are the ones we used.
