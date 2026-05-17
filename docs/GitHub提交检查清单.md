@@ -40,7 +40,7 @@
 | 类别 | 示例 |
 |------|------|
 | 源代码 | `Node Classification/*.py`、`Link Prediction/*.py`、`MAG240M/*.py` |
-| 脚本 | **`scripts/*.py`**、**`scripts/*.sh`** |
+| 脚本与辅助说明 | **`scripts/*.py`**、**`scripts/*.sh`**、**`scripts/scripts目录说明.md`**（`scripts/` 目录索引说明） |
 | TODO / 规划文档（可选一并纳入版本库） | **`docs/元路径实验待办.md`**、**`docs/HPPR策略研究待办.md`** |
 | 顶层说明 | **`README.md`**（根目录原版）；其余中文说明见 **`docs/`**（含 **`MAG240M运行说明.md`** 等） |
 | 环境与数据（clone 后必读） | **`docs/环境配置说明.md`**（conda / CUDA / PyTorch-DGL / **`data/`、`results/` 不同步**） |
@@ -54,7 +54,7 @@
 
 ## 4. 中文文档与产物提交原则（同步更新）
 
-- **应提交**：**`docs/`** 目录下说明类 **`*.md`**（含 **`MAG240M运行说明.md`**、**`环境配置说明.md`**、**`元路径实验待办.md`**、**`HPPR策略研究待办.md`** 等）；根目录 **`README.md`**；**`scripts/`** 下 **`*.py`**、**`*.sh`**（见 §3）。
+- **应提交**：**`docs/`** 目录下说明类 **`*.md`**（含 **`MAG240M运行说明.md`**、**`环境配置说明.md`**、**`元路径实验待办.md`**、**`HPPR策略研究待办.md`** 等）；**`scripts/scripts目录说明.md`**；根目录 **`README.md`**；**`scripts/`** 下 **`*.py`**、**`*.sh`**（见 §3）。
 - **应提交**：**`environment.yml`**（conda 环境规格参考，便于他人在服务器上 **`conda env create -f environment.yml`**）。
 - **可以提交**：**`requirements-freeze.txt`**（本机 **`ehgnn`** 环境的 pip 版本快照，便于排查环境差异）；**不应**视为在服务器上 **`pip install -r`** 的唯一依据，尤其 **PyTorch / DGL / torch-scatter** 须按目标机 CUDA 与官方 wheel 重新选型（详见 **`docs/环境配置说明.md`** 中 **`environment.yml` 与 requirements-freeze.txt 的作用**）。
 - **不要提交**：本机或服务器上的 **conda 环境目录本身**（不在仓库内；clone 不会复制已安装环境）。

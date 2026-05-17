@@ -1,0 +1,12 @@
+# Pip companion file for Linux servers using CUDA 12.1 + PyTorch 2.3.1 wheels.
+# Install torch / torchvision / torchaudio / dgl / torch-scatter via scripts/setup_env_linux_cu121.sh
+# (pinned CUDA wheels), not via this file.
+numpy==1.26.4
+scipy
+scikit-learn
+pandas
+tqdm
+ogb
+# Used by Link Prediction parallel entry points (parallel_main*.py)
+joblib
+dask

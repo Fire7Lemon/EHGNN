@@ -32,5 +32,6 @@ To conduct the experiments, please execute `main.py` in each folder (Node Classi
 | [环境配置说明](docs/环境配置说明.md) | 服务器环境重建、`environment.yml` / `requirements-freeze.txt` 的定位、PyTorch / DGL / torch-scatter 与 CUDA、`data`/`results` 同步问题 |
 | [GitHub提交检查清单](docs/GitHub提交检查清单.md) | 提交前检查哪些文件应该提交、哪些不应提交（含 `environment.yml`、`requirements-freeze.txt`） |
 | [MAG240M运行说明](docs/MAG240M运行说明.md) | MAG240M 数据下载、校验和服务器运行说明 |
+| [scripts 目录说明](scripts/scripts目录说明.md) | `scripts/` 下校验、串联实验、资源监控、环境与 conda-pack 脚本说明 |
 
 根目录 **`environment.yml`** 为 conda **规格参考**（可用 **`conda env create -f environment.yml`** 创建同名环境）；**`requirements-freeze.txt`** 为本机 pip **版本快照**，便于对照差异。**二者都不是已安装的环境本体**，clone 后仍需自行安装依赖，GPU 相关包须按目标机 CUDA 与官方说明选型（详见 **`docs/环境配置说明.md`**）。
