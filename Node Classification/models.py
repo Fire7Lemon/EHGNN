@@ -70,3 +70,14 @@ class EHGNN(torch.nn.Module):
             out = out + m_out * nm_weigths[i]
         out = (1 - self.alpha) * out + self.alpha * self.mlp(s_features.to(device), device)
         return out
+
+
+
+
+
+
+
+
+
+
+
