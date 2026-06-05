@@ -35,6 +35,8 @@ def parse_args():
     parser.add_argument('--num_threads', type=int, default=40, help='预留线程（当前未用）')
     parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
     parser.add_argument('--val_epochs', type=int, default=5, help='验证间隔（训练步内）')
+    parser.add_argument('--log_interval', type=int, default=1, help='训练步日志间隔（每 N step 打印一次）')
+    parser.add_argument('--skip_batch_metrics', action='store_true', help='跳过每 step 的 batch AUC/AP（不参与 backward）')
     parser.add_argument('--lr', type=float, default=0.005, help='学习率')
     parser.add_argument('--batch_size', type=int, default=4000, help='批大小')
     parser.add_argument('--gpu', type=int, default=0, help='GPU 编号')
@@ -58,6 +60,8 @@ metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
 
 if __name__ == '__main__':
     args = parse_args()
+    if args.log_interval < 1:
+        raise ValueError('--log_interval must be >= 1')
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -178,15 +182,27 @@ if __name__ == '__main__':
             batch_out = torch.cat((pos, neg)).sigmoid()
             y_true = torch.cat((torch.ones(batch_train.shape[0], dtype=int), torch.zeros(batch_train.shape[0], dtype=int)))
             loss = loss_fcn(batch_out, y_true.float().to(device))
-            loss_avg.append(loss.item())
-            auc, precision = accuracy(batch_out.to('cpu'), y_true.to('cpu'))
-            auc_avg.append(auc)
-            precision_avg.append(precision)
+            loss_val = loss.item()
+            loss_avg.append(loss_val)
+            if not args.skip_batch_metrics:
+                auc, precision = accuracy(batch_out.to('cpu'), y_true.to('cpu'))
+                auc_avg.append(auc)
+                precision_avg.append(precision)
             loss.backward()
             optimizer.step()
             end = time.perf_counter()
-            print('Epoch : {}, Step : {}, loss : {:.4f}, auc : {:.4f}, precision : {:.4f}, Running time: {:.4f} Seconds'.
-                  format(run, step, loss.item(), auc, precision, end - start))
+            if step % args.log_interval == 0:
+                if args.skip_batch_metrics:
+                    print(
+                        'Epoch : {}, Step : {}, loss : {:.4f}, Running time: {:.4f} Seconds'.format(
+                            run, step, loss_val, end - start,
+                        ),
+                    )
+                else:
+                    print(
+                        'Epoch : {}, Step : {}, loss : {:.4f}, auc : {:.4f}, precision : {:.4f}, Running time: {:.4f} Seconds'.
+                        format(run, step, loss_val, auc, precision, end - start),
+                    )
 
             if step % args.val_epochs == 0 and step != 0:
                 start = time.perf_counter()
