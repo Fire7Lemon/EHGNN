@@ -9,25 +9,33 @@ import numpy as np
 from utils import random_walk_sim, accuracy, get_model_need, load_dblp, load_PubMed
 from models import EHGNN
 
+
 # 命令行参数解析
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='PubMed', help='数据集名称（PubMed / DBLP），决定加载逻辑与 meta-path 列表')
+    parser.add_argument('--dataset', type=str, default='PubMed',
+                        help='数据集名称（PubMed / DBLP），决定加载逻辑与 meta-path 列表')
     parser.add_argument('--path', type=str, default='../data/', help='数据根路径前缀，与数据集名拼接为 data_path+name/')
-    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/', help='其它特征路径（当前入口未使用，仅占位）')
+    parser.add_argument('--other_path', type=str, default='../data/ogbn_mag/',
+                        help='其它特征路径（当前入口未使用，仅占位）')
     parser.add_argument('--is_normalize', action='store_true', help='特征是否按行归一化（每行和为 1）')
-    parser.add_argument('--wo_l2', action='store_true', help='关闭 MLP（Multi-Layer Perceptron，多层感知机）输出的 L2 归一化')
+    parser.add_argument('--wo_l2', action='store_true',
+                        help='关闭 MLP（Multi-Layer Perceptron，多层感知机）输出的 L2 归一化')
     parser.add_argument('--wo_mweight', action='store_true', help='关闭 meta-path 可学习权重（MWeight），改为均匀权重')
     parser.add_argument('--wo_tweight', action='store_true', help='关闭目标节点类型可学习权重（TWeight），改为均匀权重')
-    parser.add_argument('--r_neighbor', action='store_true', help='RW 后对邻居随机采样 Top-K（消融）；默认按频次 Counter.most_common(K)')
+    parser.add_argument('--r_neighbor', action='store_true',
+                        help='RW 后对邻居随机采样 Top-K（消融）；默认按频次 Counter.most_common(K)')
     parser.add_argument('--K', type=int, default=20, help='每个源节点保留的相似邻居数量上限（Top-K）')
     parser.add_argument('--walk_num', type=int, default=40, help='每个节点沿 meta-path 执行的随机游走次数')
     parser.add_argument('--hidden', type=int, default=256, help='MLP 隐藏层维度')
     parser.add_argument('--n_layers', type=int, default=4, help='MLP 层数')
     parser.add_argument('--dropout', type=float, default=0.4, help='Dropout 比率')
-    parser.add_argument('--eps', type=float, default=1e-5, help='与 PPR（Personalized PageRank，个性化 PageRank）相关的数值稳定项（当前 RW 流程未使用）')
-    parser.add_argument('--alpha', type=float, default=0.7, help='融合系数：自身 MLP 表征与邻居聚合表征的加权（见 EHGNN.forward）')
-    parser.add_argument('--num_threads', type=int, default=40, help='预留：PPR / RW 线程数（当前 DGL random_walk 路径未使用）')
+    parser.add_argument('--eps', type=float, default=1e-5,
+                        help='与 PPR（Personalized PageRank，个性化 PageRank）相关的数值稳定项（当前 RW 流程未使用）')
+    parser.add_argument('--alpha', type=float, default=0.7,
+                        help='融合系数：自身 MLP 表征与邻居聚合表征的加权（见 EHGNN.forward）')
+    parser.add_argument('--num_threads', type=int, default=40,
+                        help='预留：PPR / RW 线程数（当前 DGL random_walk 路径未使用）')
     parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
     parser.add_argument('--val_epochs', type=int, default=5, help='每隔多少 epoch 在测试集上验证一次')
     parser.add_argument('--lr', type=float, default=1e-3, help='Adam 学习率')
@@ -51,7 +59,6 @@ metapaths_pubmed.append(['gcd_r', 'gag', 'gcd'])
 metapaths_pubmed.append(['cid_r', 'cid'])
 metapaths_pubmed.append(['cid_r', 'cig', 'cig_r', 'cac', 'cis', 'cis_r', 'cid'])
 metapaths_pubmed.append(['swd_r', 'sas', 'swd'])
-
 
 if __name__ == '__main__':
     args = parse_args()
@@ -127,7 +134,8 @@ if __name__ == '__main__':
         for batch in dataloader:
             optimizer.zero_grad()
             s_idxs, t_idxs, weightss = get_model_need(len(metapaths), train_matrixs, t_typess, batch)
-            batch_out = model(features, features[s_type][batch], s_idxs, t_idxs, weightss, t_typess, batch.shape[0], device)
+            batch_out = model(features, features[s_type][batch], s_idxs, t_idxs, weightss, t_typess, batch.shape[0],
+                              device)
             batch_out = F.log_softmax(batch_out, dim=1)
             y_true = labels[batch].to(device)
             loss = loss_fcn(batch_out, y_true.squeeze(dim=1))
@@ -147,11 +155,13 @@ if __name__ == '__main__':
                 model.eval()
 
                 start_ev = time.perf_counter()
-                test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
+                test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False,
+                                                          drop_last=False)
                 test_out = torch.FloatTensor([])
                 for batch_test in test_loader:
                     s_idxs, t_idxs, weightss = get_model_need(len(metapaths), test_matrixs, t_typess, batch_test)
-                    result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess, batch_test.shape[0], device).to('cpu')
+                    result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess,
+                                   batch_test.shape[0], device).to('cpu')
                     result = F.log_softmax(result, dim=1)
                     test_out = torch.cat((test_out, result), dim=0)
 
@@ -163,22 +173,25 @@ if __name__ == '__main__':
                     best_test_macro = macro_f1
                     best_test_micro = micro_f1
                     best_epoch = run
-                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1, end_ev - start_ev))
+                print('Test macro f1 : {:.4f}, micro f1 : {:.4f}, Time : {:.4f}'.format(macro_f1, micro_f1,
+                                                                                        end_ev - start_ev))
 
     final_epoch = args.epochs - 1 if args.epochs > 0 else -1
     last_eval_at_final_epoch = (
-        args.epochs > 0
-        and final_epoch != 0
-        and final_epoch % args.val_epochs == 0)
+            args.epochs > 0
+            and final_epoch != 0
+            and final_epoch % args.val_epochs == 0)
     if args.epochs > 0 and not last_eval_at_final_epoch:
         with torch.no_grad():
             model.eval()
             start_ev = time.perf_counter()
-            test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False, drop_last=False)
+            test_loader = torch.utils.data.DataLoader(idx_test, batch_size=args.batch_size, shuffle=False,
+                                                      drop_last=False)
             test_out = torch.FloatTensor([])
             for batch_test in test_loader:
                 s_idxs, t_idxs, weightss = get_model_need(len(metapaths), test_matrixs, t_typess, batch_test)
-                result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess, batch_test.shape[0], device).to('cpu')
+                result = model(features, features[s_type][batch_test], s_idxs, t_idxs, weightss, t_typess,
+                               batch_test.shape[0], device).to('cpu')
                 result = F.log_softmax(result, dim=1)
                 test_out = torch.cat((test_out, result), dim=0)
             y_true = labels[idx_test]
