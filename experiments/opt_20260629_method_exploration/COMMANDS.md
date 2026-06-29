@@ -1,0 +1,261 @@
+# 命令记录
+
+## 2026-06-03 本地初始化 — Git 检查
+
+```bash
+git status --short
+git branch --show-current
+git rev-parse HEAD
+git log --oneline -n 5
+git remote -v
+```
+
+用途：记录实验初始化时的 Git 快照。  
+结果：分支 `reproduce-baseline`，commit `c231c79`；未跟踪 `docs/EHGNN_方法级优化探索计划.md` 与 `experiments/`。
+
+---
+
+## 2026-06-03 本地初始化 — Python 环境检查
+
+```bash
+python --version
+python -c "import sys; print(sys.executable)"
+python -c "import torch; print('torch', torch.__version__)"
+python -c "import dgl; print('dgl', dgl.__version__)"
+```
+
+用途：判断本地能否运行 EHGNN。  
+结果：Python 3.13.2；torch 2.7.0+cpu；**dgl 未安装** → 本地不可训练。
+
+---
+
+## 2026-06-03 P0 — DBLP LP 日志解析与画图
+
+```bash
+python experiments/opt_20260629_method_exploration/00_existing_results/code/p0_scan_and_parse.py
+```
+
+用途：扫描 `server_results/` 等路径，解析 DBLP LP 5-seed 日志，生成 CSV 与 matplotlib 图。  
+结果：5/5 seed 完整；输出 `dblp_lp_5seed_summary.csv`、`dblp_lp_5seed_stats.csv`、4 张 PNG。
+
+---
+
+## 2026-06-03 P0 — 日志路径列举（PowerShell）
+
+```powershell
+cmd /c "dir /b server_results\2026-06-02_\Link Prediction\results\dblp_lp_5seeds_val1000\logs"
+```
+
+用途：确认 DBLP LP val1000 正式日志文件名。  
+结果：5 个 `*_e100.log` + 2 个 diagnostic `*_e2.log`。
+
+---
+
+## 2026-06-03 P0 — 单日志字段抽样（Python）
+
+```bash
+python -c "..."  # 见 p0_scan_and_parse.py 内 parse_dblp_lp_log
+```
+
+用途：验证 Final Epoch / Total training time / eval time 正则。  
+结果：seed42 — Final Epoch 99，Total 242316 s，mean eval ~477 s。
+
+---
+
+## 2026-06-03 P1 — 只读代码审计
+
+```bash
+# 阅读 Node Classification/main.py, models.py, utils.py（只读，无命令输出）
+```
+
+用途：确定 PubMed NC 数据流、RW 预计算、EHGNN.forward 输入格式与可复用函数。  
+结果：见 `01_sehgnn_lite_pubmed_nc/report.md` §代码复用审计。
+
+---
+
+## 2026-06-03 P1 — 语法检查（本地，无 DGL）
+
+```bash
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/sehgnn_lite_model.py
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/ehgnn_precompute.py
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/parse_sehgnn_lite_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/plot_sehgnn_lite_results.py
+# run_pubmed_nc_sehgnn_lite.py — 跳过（import utils/dgl，本地无 DGL）
+```
+
+用途：验证 P1 新增 Python 文件语法。  
+结果：**全部通过**（含 `run_pubmed_nc_sehgnn_lite.py` 语法检查；运行时仍需 DGL）。
+
+---
+
+## 2026-06-03 P1 — 服务器脚本路径
+
+```text
+experiments/opt_20260629_method_exploration/server_scripts/run_p1_sehgnn_lite_pubmed_nc.sh
+```
+
+用途：服务器一键运行 P1（train + parse + plot）。  
+结果：脚本已创建，**未执行**。
+
+---
+
+## 2026-06-03 P2 — 只读代码审计
+
+```bash
+# 阅读 Link Prediction/main.py, main_yelp.py, models.py, utils.py（只读）
+```
+
+用途：定位 dot decoder、evaluate_lp、PubMed LP 数据流。  
+结果：见 `02_lp_pair_decoder_pubmed_lp/report.md` §代码复用审计。
+
+---
+
+## 2026-06-03 P2 — 语法检查（本地，无 DGL）
+
+```bash
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/lp_pair_decoder_model.py
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/parse_pair_decoder_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/plot_pair_decoder_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/main_pubmed_lp_pair_decoder.py
+```
+
+用途：验证 P2 新增 Python 文件语法。  
+结果：**全部通过**（运行时仍需 DGL）。
+
+---
+
+## 2026-06-03 P2 — 服务器脚本路径
+
+```text
+experiments/opt_20260629_method_exploration/server_scripts/run_p2_pair_decoder_pubmed_lp.sh
+```
+
+用途：服务器一键运行 P2（train + parse + plot）。  
+结果：脚本已创建，**未执行**。
+
+---
+
+## 2026-06-03 P3 — 只读代码审计
+
+```bash
+# 阅读 Link Prediction/main.py, utils.py, models.py（训练循环与 evaluate_lp）
+```
+
+用途：确定训练 index 组织、采样接入点。  
+结果：见 `03_sampled_lp_training_pubmed_lp/report.md` §代码复用审计。
+
+---
+
+## 2026-06-03 P3 — 语法检查（本地，无 DGL）
+
+```bash
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/sampled_lp_loader.py
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/parse_sampled_lp_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/plot_sampled_lp_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/main_pubmed_lp_sampled_training.py
+```
+
+用途：验证 P3 Python 语法。  
+结果：**全部通过**（运行时仍需 DGL）。
+
+---
+
+## 2026-06-03 P3 — 服务器脚本路径
+
+```text
+experiments/opt_20260629_method_exploration/server_scripts/run_p3_sampled_lp_pubmed.sh
+```
+
+用途：服务器运行 ratio=0.50 与 0.25 两次 + parse + plot。  
+结果：脚本已创建，**未执行**。
+
+---
+
+## 2026-06-03 P4 — 只读代码审计
+
+```bash
+# 阅读 Node Classification/main.py, models.py, utils.py; 检查 server_results checkpoint
+```
+
+用途：确认 teacher 流程、checkpoint/logits 可用性、student 输入。  
+结果：无 checkpoint；baseline 在 pubmed_seed_42.txt；见 `04_distill_mlp_pubmed_nc/report.md`。
+
+---
+
+## 2026-06-03 P4 — 语法检查（本地，无 DGL）
+
+```bash
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/mlp_student_model.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/distillation_losses.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/parse_distill_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/plot_distill_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py
+```
+
+用途：验证 P4 Python 语法。  
+结果：**全部通过**（运行时仍需 DGL）。
+
+---
+
+## 2026-06-03 P4 — 服务器脚本路径
+
+```text
+experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_pubmed_nc.sh
+```
+
+用途：服务器 train teacher + distill student + parse + plot。  
+结果：脚本已创建，**未执行**。
+
+---
+
+## 2026-06-03 P5 — 代码审计（只读）
+
+```powershell
+# RW Top-K 流程
+rg "random_walk_sim|_pick_neighbors_from_rw_multiset|get_model_need" "Node Classification/utils.py"
+rg "random_walk_sim" "Link Prediction/utils.py"
+```
+
+用途：确认 PubMed 加载、meta-path RW、Top-K→CSR 接口。  
+结果：NC `utils.py` L491–567 `_pick_neighbors_from_rw_multiset` + `random_walk_sim`；LP 版 L393+ 类似。
+
+---
+
+## 2026-06-03 P5 — 文件创建
+
+```text
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/ppr_topk_lite.py
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/compare_rw_vs_ppr_neighbors.py
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/parse_ppr_topk_results.py
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/plot_ppr_topk_results.py
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/configs/pubmed_ppr_topk_demo.yaml
+experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/report.md
+experiments/opt_20260629_method_exploration/server_scripts/run_p5_ppr_topk_demo.sh
+```
+
+---
+
+## 2026-06-03 P5 — 本地 py_compile
+
+```powershell
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/ppr_topk_lite.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/compare_rw_vs_ppr_neighbors.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/parse_ppr_topk_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/plot_ppr_topk_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py
+```
+
+用途：验证 P5 Python 语法。  
+结果：**全部通过**（demo 运行时仍需 DGL + PubMed 数据，不在本地执行）。
+
+---
+
+## 2026-06-03 P5 — 服务器脚本路径
+
+```text
+experiments/opt_20260629_method_exploration/server_scripts/run_p5_ppr_topk_demo.sh
+```
+
+用途：服务器 PPR-TopK demo + compare + parse + plot。  
+结果：脚本已创建，**未执行**。

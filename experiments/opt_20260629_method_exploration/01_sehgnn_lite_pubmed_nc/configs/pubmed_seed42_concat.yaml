@@ -1,0 +1,16 @@
+# SeHGNN-lite PubMed NC — default quick validation (seed=42, concat fusion)
+dataset: PubMed
+seed: 42
+epochs: 100
+hidden: 256
+dropout: 0.4
+lr: 0.001
+weight_decay: 0.0
+fusion: concat
+batch_size: 3000
+val_epochs: 5
+K: 20
+walk_num: 40
+gpu: 0
+root_out: experiments/opt_20260629_method_exploration
+include_self: true

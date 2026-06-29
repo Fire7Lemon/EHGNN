@@ -1,0 +1,23 @@
+{
+  "method": "EHGNN",
+  "dataset": "PubMed",
+  "seed": 42,
+  "best_test_macro": 0.6312616652690182,
+  "best_test_micro": 0.6511627906976745,
+  "final_test_macro": 0.5789329091960671,
+  "final_test_micro": 0.5930232558139535,
+  "best_epoch": 45,
+  "total_training_time_sec": 3.6633235327899456,
+  "hyperparams": {
+    "alpha": 0.7,
+    "K": 20,
+    "lr": 0.001,
+    "dropout": 0.4,
+    "hidden": 256,
+    "layers": 4,
+    "batch_size": 3000,
+    "walk_num": 40
+  },
+  "source": "server_results/2026-06-02_/Node Classification/results/pubmed_5seeds/pubmed_seed_42.txt",
+  "note": "Official reproduction baseline for P1 comparison"
+}

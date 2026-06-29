@@ -1,0 +1,10 @@
+dataset: PubMed
+seed: 42
+num_target_nodes: 500
+k: 20
+alpha: 0.15
+num_iters: 10
+metapath_index: 0
+root_out: experiments/opt_20260629_method_exploration
+evidence_level: Prototype
+claim_boundary: Design/demo only; not a full replacement of EHGNN random walk

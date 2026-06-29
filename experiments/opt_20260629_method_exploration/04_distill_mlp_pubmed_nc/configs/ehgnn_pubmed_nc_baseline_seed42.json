@@ -1,0 +1,14 @@
+{
+  "method": "EHGNN",
+  "dataset": "PubMed",
+  "seed": 42,
+  "macro_f1": 0.6312616652690182,
+  "micro_f1": 0.6511627906976745,
+  "best_epoch": 45,
+  "final_macro_f1": 0.5789329091960671,
+  "final_micro_f1": 0.5930232558139535,
+  "total_time_sec": 3.6633235327899456,
+  "source_log": "server_results/2026-06-02_/Node Classification/results/pubmed_5seeds/pubmed_seed_42.txt",
+  "status": "found",
+  "note": "Official NC baseline for P4 teacher comparison"
+}

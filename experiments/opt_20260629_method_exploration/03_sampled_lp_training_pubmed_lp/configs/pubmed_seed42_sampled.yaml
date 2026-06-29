@@ -1,0 +1,14 @@
+# Sampled-LP PubMed LP — default quick validation configs
+dataset: PubMed
+seed: 42
+epochs: 100
+sample_ratio: 0.5
+resample_each_epoch: true
+log_interval: 100
+val_epochs: 5
+skip_batch_metrics: true
+lr: 0.005
+hidden: 256
+root_out: experiments/opt_20260629_method_exploration
+
+# Additional server run: sample_ratio=0.25 (see run_p3_sampled_lp_pubmed.sh)

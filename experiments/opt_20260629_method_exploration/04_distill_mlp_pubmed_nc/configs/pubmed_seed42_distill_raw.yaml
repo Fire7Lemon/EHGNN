@@ -1,0 +1,12 @@
+# P4 EHGNN-to-MLP Distillation — default quick validation
+dataset: PubMed
+seed: 42
+teacher_mode: train
+teacher_epochs: 100
+student_epochs: 200
+student_input: raw
+temperature: 3.0
+kd_alpha: 0.5
+student_hidden: 256
+student_layers: 2
+root_out: experiments/opt_20260629_method_exploration

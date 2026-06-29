@@ -1,0 +1,12 @@
+# PubMed LP Pair Decoder — default quick validation
+dataset: PubMed
+seed: 42
+epochs: 100
+decoder: pair_mlp
+hidden: 256
+dropout: 0.0
+lr: 0.005
+log_interval: 100
+val_epochs: 5
+skip_batch_metrics: true
+root_out: experiments/opt_20260629_method_exploration

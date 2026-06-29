@@ -1,0 +1,17 @@
+{
+  "method": "EHGNN",
+  "dataset": "PubMed",
+  "seed": 42,
+  "best_auc": 0.5489,
+  "best_ap": 0.5214,
+  "best_epoch": 0,
+  "final_auc": 0.5318,
+  "final_ap": 0.5151,
+  "final_epoch": 99,
+  "total_time_sec": 24277.2619,
+  "load_data_time_sec": 4.7579,
+  "sim_time_sec": 8.475,
+  "source_log": "server_results/2026-06-02_/Link Prediction/results/pubmed_lp_5seeds/pubmed_lp_seed_42.log",
+  "status": "found",
+  "note": "Parsed from official 5-seed reproduction batch; dot-product decoder baseline"
+}
