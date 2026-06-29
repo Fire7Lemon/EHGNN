@@ -139,6 +139,8 @@ Code Prepared；`ppr_topk_lite.py` 可本地 import；demo 需 DGL+数据
 
 **工程结论：** 当前朴素 PPR-lite（power iteration, K=20, α=0.15, 500 nodes）在 PubMed meta-path `dad_r→dad` 上与 RW Top-K 重叠极低，且 PPR 显著慢于 RW。**不适合**作为 RW Top-K 的直接替代；仅保留为 design/demo 与后续 push-PPR / 调参的起点。详见 `AUDIT_FIX_REPORT.md`。
 
+- **2026-06-03 common import path**：P4 failed because `common/path_utils.py` was not discoverable before import; all P1–P5 entry/parse/plot scripts now bootstrap `EXP_ROOT/common` via `parents[2]`; smoke test upgraded to import/`--help` checks.
+
 ## 后续接入 EHGNN 说明
 
 1. 在 `random_walk_sim` 处增加 `mode=ppr|rw` 分支

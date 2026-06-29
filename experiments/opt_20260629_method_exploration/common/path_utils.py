@@ -7,6 +7,21 @@ from pathlib import Path
 EXP_SUBDIR = "experiments/opt_20260629_method_exploration"
 
 
+def bootstrap_common_path(current_file) -> Path:
+    """
+    Insert ``experiments/opt_20260629_method_exploration/common`` on sys.path.
+
+    For scripts in ``<P?>/code/*.py``, ``Path(current_file).parents[2]`` is EXP_ROOT.
+    Call **before** ``from path_utils import ...`` or ``from plot_utils import ...``.
+    """
+    exp_root = Path(current_file).resolve().parents[2]
+    common = exp_root / "common"
+    s = str(common)
+    if s not in sys.path:
+        sys.path.insert(0, s)
+    return exp_root
+
+
 def get_project_root(current_file, levels: int = 4) -> Path:
     """Return EHGNN repo root (default: code/ -> ... -> repo root = parents[4])."""
     return Path(current_file).resolve().parents[levels]

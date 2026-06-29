@@ -120,6 +120,8 @@ python -u experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/c
 
 - **2026-06-03 系统审计**：`bootstrap_paths(task=nc)`、`plot_utils` matplotlib skip、server `PARSE_ONLY=1` + skip-existing。见 `AUDIT_FIX_REPORT.md`。
 
+- **2026-06-03 common import path**：P4 failed because `common/path_utils.py` was not discoverable before import; all P1–P5 entry/parse/plot scripts now bootstrap `EXP_ROOT/common` via `parents[2]`; smoke test upgraded from `py_compile` to import/`--help` checks (`import_smoke_checks.py`).
+
 | 指标 | 值 |
 |------|-----|
 | Best Macro-F1 | 0.6313 |

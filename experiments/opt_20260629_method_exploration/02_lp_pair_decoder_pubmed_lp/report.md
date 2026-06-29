@@ -116,3 +116,6 @@ Best AUC **0.5489**，AP **0.5214**，来源 `server_results/2026-06-02_/.../pub
 - **2026-06-03 parse 路径修复**：主实验可跑通，但 `parse_pair_decoder_results.py` 中 `log_path.relative_to(ROOT)` 因相对 log 与绝对 ROOT 混用失败。已统一 `common/path_utils.safe_relpath` + `resolve_under_root`；`run_p2_pair_decoder_pubmed_lp.sh` 支持 `PARSE_ONLY=1` 与主 CSV 存在时 skip training。
 
 - **2026-06-03 系统审计**：移除 shell PYTHONPATH；parse/plot `\|\| [WARN]`。见 `AUDIT_FIX_REPORT.md`。
+
+- **2026-06-03 common import path**：P4 failed because `common/path_utils.py` was not discoverable before import; all P1–P5 entry/parse/plot scripts now bootstrap `EXP_ROOT/common` via `parents[2]`; smoke test upgraded to import/`--help` checks.
+

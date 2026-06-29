@@ -118,3 +118,6 @@ Best Macro **0.6313**，Micro **0.6512** — `pubmed_seed_42.txt`
 - **2026-06-03 parser 路径统一**：`parse_distill_results.py` 改用 `safe_relpath`（预防性）。
 
 - **2026-06-03 系统审计**：`TEACHER_MODE=load` 当 logits 存在、`PARSE_ONLY=1`、plot skip。见 `AUDIT_FIX_REPORT.md`。
+
+- **2026-06-03 common import path（P4 阻塞根因）**：`main_pubmed_nc_distill.py` 启动时报 `ModuleNotFoundError: No module named 'path_utils'`。根因是 `common/` 未在 import 前加入 `sys.path`（误用 `CODE_DIR.parents[4]`）。已改为 `EXP_ROOT = parents[2]` + `COMMON_DIR` bootstrap；smoke test 从 `py_compile` 升级为 `import_smoke_checks.py`。**部署后请先跑 smoke test 再重跑 P4。**
+

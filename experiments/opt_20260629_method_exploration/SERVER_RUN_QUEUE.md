@@ -8,7 +8,9 @@
 
 ## 当前建议（审计后 2026-06-03）
 
-### 0. 运行前必做
+### 0. 运行前必做（含 common import path 修复后）
+
+P4 曾因 `path_utils` 不可发现而失败；已修复并升级 smoke test。**部署后请先跑 smoke test。**
 
 ```bash
 cd /home/mayq/ehgnn/EHGNN
@@ -53,7 +55,10 @@ PARSE_ONLY=1 bash experiments/opt_20260629_method_exploration/server_scripts/run
 
 ### 4. P1 / P4 — 仍需正式训练
 
+P4：`path_utils` import 已修复（2026-06-03）；**先 smoke test，再训练**。
+
 ```bash
+bash experiments/opt_20260629_method_exploration/server_scripts/smoke_test_method_exploration.sh
 bash experiments/opt_20260629_method_exploration/server_scripts/run_p1_sehgnn_lite_pubmed_nc.sh
 bash experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_pubmed_nc.sh
 ```
@@ -77,7 +82,7 @@ bash experiments/opt_20260629_method_exploration/server_scripts/run_all_method_e
 | P3 | Sampled-LP | `03_sampled_lp_training_pubmed_lp/` | PubMed LP | LP | **ratio050 done — run ratio025** | skip050 自动 |
 | P2 | LP Pair Decoder | `02_lp_pair_decoder_pubmed_lp/` | PubMed LP | LP | **Check CSV — parse-only?** | `PARSE_ONLY=1` |
 | P1 | SeHGNN-lite | `01_sehgnn_lite_pubmed_nc/` | PubMed | NC | **Pending train** | |
-| P4 | Distillation | `04_distill_mlp_pubmed_nc/` | PubMed | NC | **Pending train** | |
+| P4 | Distillation | `04_distill_mlp_pubmed_nc/` | PubMed | NC | **Pending train** (path_utils fixed) | smoke test first |
 
 ## PARSE_ONLY 约定
 

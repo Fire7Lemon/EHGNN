@@ -19,11 +19,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-CODE_DIR = Path(__file__).resolve().parent
-_pr = CODE_DIR.parents[4]
-_common = _pr / "experiments/opt_20260629_method_exploration/common"
-if str(_common) not in sys.path:
-    sys.path.insert(0, str(_common))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from path_utils import add_code_dir, bootstrap_paths, resolve_project_data_path  # noqa: E402
 

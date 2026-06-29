@@ -8,14 +8,16 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
-if str(COMMON) not in sys.path:
-    sys.path.insert(0, str(COMMON))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+PROJECT_ROOT = _FILE.parents[4]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from path_utils import resolve_under_root, safe_relpath  # noqa: E402
 
-P3 = ROOT / "experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp"
+P3 = EXP_ROOT / "03_sampled_lp_training_pubmed_lp"
 
 RE_BEST = re.compile(
     r"Best Test AUC\s*:\s*([\d.]+),\s*AP\s*:\s*([\d.]+),\s*Epoch\s*:\s*(-?\d+)"
@@ -89,7 +91,7 @@ def parse_log(log_path: Path) -> dict:
         "resample_each_epoch": resample,
         "steps_per_epoch": steps_per_epoch,
         "base_steps_per_epoch": base_steps,
-        "log_path": safe_relpath(log_path, ROOT),
+        "log_path": safe_relpath(log_path, PROJECT_ROOT),
     }
 
 
@@ -100,13 +102,13 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    log_path = resolve_under_root(args.log, ROOT)
+    log_path = resolve_under_root(args.log, PROJECT_ROOT)
     if not log_path.is_file():
         raise FileNotFoundError(log_path)
 
     p = parse_log(log_path)
     out_path = (
-        resolve_under_root(args.out, ROOT)
+        resolve_under_root(args.out, PROJECT_ROOT)
         if args.out
         else P3 / "results" / (log_path.stem + "_parsed.csv")
     )

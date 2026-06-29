@@ -9,13 +9,16 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
-if str(COMMON) not in sys.path:
-    sys.path.insert(0, str(COMMON))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+PROJECT_ROOT = _FILE.parents[4]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from path_utils import resolve_under_root, safe_relpath  # noqa: E402
-P4 = ROOT / "experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc"
+
+P4 = EXP_ROOT / "04_distill_mlp_pubmed_nc"
 RESULTS = P4 / "results"
 
 RE_TEACHER = re.compile(r"Teacher best macro=([\d.]+) micro=([\d.]+)")
@@ -54,20 +57,20 @@ def main():
     args = ap.parse_args()
 
     row = {}
-    csv_path = resolve_under_root(args.csv, ROOT)
+    csv_path = resolve_under_root(args.csv, PROJECT_ROOT)
     if csv_path.is_file():
         with open(csv_path, encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         if rows:
             row.update(rows[-1])
 
-    row.update(parse_log(resolve_under_root(args.log, ROOT)))
+    row.update(parse_log(resolve_under_root(args.log, PROJECT_ROOT)))
 
     metrics_path = RESULTS / "pubmed_nc_teacher_seed42_metrics.json"
     if metrics_path.is_file():
-        row["teacher_metrics_json"] = safe_relpath(metrics_path, ROOT)
+        row["teacher_metrics_json"] = safe_relpath(metrics_path, PROJECT_ROOT)
 
-    out_path = resolve_under_root(args.out, ROOT)
+    out_path = resolve_under_root(args.out, PROJECT_ROOT)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fields = list(row.keys()) if row else ["status"]
     if not row:

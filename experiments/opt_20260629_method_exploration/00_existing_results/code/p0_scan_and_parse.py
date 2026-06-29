@@ -16,7 +16,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[4]  # project root (EHGNN)
-EXP = ROOT / "experiments" / "opt_20260629_method_exploration"
+EXP = Path(__file__).resolve().parents[2]  # opt_20260629_method_exploration
 COMMON = EXP / "common"
 if str(COMMON) not in sys.path:
     sys.path.insert(0, str(COMMON))

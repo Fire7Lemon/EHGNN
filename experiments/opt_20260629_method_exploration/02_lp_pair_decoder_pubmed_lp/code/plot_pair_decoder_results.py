@@ -8,17 +8,17 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
-if str(COMMON) not in sys.path:
-    sys.path.insert(0, str(COMMON))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from plot_utils import require_matplotlib_or_skip  # noqa: E402
 
 plt = require_matplotlib_or_skip("plot_pair_decoder_results.py")
 
-ROOT = Path(__file__).resolve().parents[4]
-P2 = ROOT / "experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp"
+P2 = EXP_ROOT / "02_lp_pair_decoder_pubmed_lp"
 FIGS = P2 / "figs"
 BASELINE_JSON = P2 / "configs/ehgnn_pubmed_lp_baseline_seed42.json"
 

@@ -8,17 +8,17 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
-if str(COMMON) not in sys.path:
-    sys.path.insert(0, str(COMMON))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from plot_utils import require_matplotlib_or_skip  # noqa: E402
 
 plt = require_matplotlib_or_skip("plot_distill_results.py")
 
-ROOT = Path(__file__).resolve().parents[4]
-P4 = ROOT / "experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc"
+P4 = EXP_ROOT / "04_distill_mlp_pubmed_nc"
 FIGS = P4 / "figs"
 BASELINE = P4 / "configs/ehgnn_pubmed_nc_baseline_seed42.json"
 

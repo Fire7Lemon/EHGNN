@@ -8,15 +8,16 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
-if str(COMMON) not in sys.path:
-    sys.path.insert(0, str(COMMON))
+_FILE = Path(__file__).resolve()
+EXP_ROOT = _FILE.parents[2]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 
 from plot_utils import require_matplotlib_or_skip  # noqa: E402
 
 plt = require_matplotlib_or_skip("plot_sampled_lp_results.py")
-P3 = ROOT / "experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp"
+P3 = EXP_ROOT / "03_sampled_lp_training_pubmed_lp"
 FIGS = P3 / "figs"
 BASELINE_JSON = P3 / "configs/ehgnn_pubmed_lp_baseline_seed42.json"
 

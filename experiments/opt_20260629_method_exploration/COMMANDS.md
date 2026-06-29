@@ -364,4 +364,37 @@ python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lit
 
 **修复摘要**：`bootstrap_paths` / `add_source_dir(nc|lp)`、`plot_utils` matplotlib skip、全 stage `PARSE_ONLY=1` + skip-existing、移除 shell `PYTHONPATH` 混用。
 
-**本地**：Windows 无 bash 时手动 `py_compile`；smoke test 在服务器执行。
+**本地**：Windows 无 bash 时运行 `python experiments/opt_20260629_method_exploration/common/import_smoke_checks.py`；完整 smoke test 在服务器执行。
+
+---
+
+## 2026-06-03 — common import path 专项修复（P4 path_utils）
+
+**问题**：P4 服务器报错 `ModuleNotFoundError: No module named 'path_utils'`。各 P1–P5 脚本在 `from path_utils import ...` 前未把 `common/` 加入 `sys.path`（部分脚本误用 `CODE_DIR.parents[4]` 定位 common）。`py_compile` 只检查语法，不执行 import，未能发现。
+
+**修复**：所有导入 `path_utils` / `plot_utils` 的脚本在 import 前加入：
+
+```python
+EXP_ROOT = Path(__file__).resolve().parents[2]
+COMMON_DIR = EXP_ROOT / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
+```
+
+**Smoke test 升级**：`common/import_smoke_checks.py` + `smoke_test_method_exploration.sh` 从纯 `py_compile` 升级为真实 import / `--help` 检查（可发现 `path_utils`、`plot_utils`、NC/LP `utils` 路径、data path 尾部 `/`）。
+
+```bash
+# 服务器
+bash experiments/opt_20260629_method_exploration/server_scripts/smoke_test_method_exploration.sh
+
+# 本地 / 任意环境
+python experiments/opt_20260629_method_exploration/common/import_smoke_checks.py
+```
+
+**P4 重跑**（smoke 通过后）：
+
+```bash
+bash experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_pubmed_nc.sh
+```
+
+**未修改** `Node Classification/`、`Link Prediction/` 正式主线代码。

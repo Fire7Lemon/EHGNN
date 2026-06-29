@@ -84,7 +84,7 @@ PY_FILES=(
   "${EXP}/05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py"
   "${EXP}/05_ppr_topk_lite_design/code/ppr_topk_lite.py"
   "${EXP}/05_ppr_topk_lite_design/code/parse_ppr_topk_results.py"
-  "${EXP}/05_ppr_topk_lite_design/code/plot_ppr_topk_results.py"
+  "${EXP}/common/import_smoke_checks.py"
 )
 for f in "${PY_FILES[@]}"; do
   if [ ! -f "${f}" ]; then
@@ -98,90 +98,13 @@ for f in "${PY_FILES[@]}"; do
   fi
 done
 
-# --- path_utils import & safe_relpath ---
+# --- import-level checks (path_utils, plot_utils, parsers, --help) ---
 log ""
-log "--- path_utils ---"
-python - <<'PY' 2>>"${REPORT}" | tee -a "${REPORT}"
-import sys
-from pathlib import Path
-root = Path(".").resolve()
-common = root / "experiments/opt_20260629_method_exploration/common"
-sys.path.insert(0, str(common))
-from path_utils import (
-    add_source_dir,
-    bootstrap_paths,
-    get_project_root,
-    resolve_project_data_path,
-    safe_relpath,
-)
-pr = get_project_root(common / "path_utils.py")
-dp = resolve_project_data_path(pr)
-assert dp.endswith("/"), dp
-assert "data/" in dp
-rel = safe_relpath("experiments/opt_20260629_method_exploration/foo.log", pr)
-assert not rel.startswith("/") or "experiments" in rel
-print("[PASS] path_utils import + resolve_project_data_path + safe_relpath")
-print("  data_path sample:", dp)
-print("  safe_relpath sample:", rel)
-PY
-
-# --- parser dry-run on relative log paths ---
-log ""
-log "--- parser relative log path ---"
-python - <<'PY' 2>>"${REPORT}" | tee -a "${REPORT}"
-import sys
-from pathlib import Path
-root = Path(".").resolve()
-common = root / "experiments/opt_20260629_method_exploration/common"
-sys.path.insert(0, str(common))
-p2_parse = root / "experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/parse_pair_decoder_results.py"
-sys.path.insert(0, str(p2_parse.parent))
-# import parse module functions via exec minimal test
-from path_utils import safe_relpath, resolve_under_root, get_project_root
-ROOT = get_project_root(p2_parse)
-log_rel = "experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/logs/test.log"
-resolved = resolve_under_root(log_rel, ROOT)
-out = safe_relpath(resolved, ROOT)
-print("[PASS] parser path resolve:", out)
-PY
-
-# --- matplotlib ---
-log ""
-log "--- matplotlib ---"
-if python -c "import matplotlib; print('[PASS] matplotlib', matplotlib.__version__)" 2>>"${REPORT}" | tee -a "${REPORT}"; then
-  :
+log "--- import_smoke_checks (real import / --help) ---"
+if python "${EXP}/common/import_smoke_checks.py" 2>>"${REPORT}" | tee -a "${REPORT}"; then
+  pass "import_smoke_checks.py"
 else
-  warn "matplotlib not installed — plot scripts should exit 0 via plot_utils"
-  python - <<'PY' 2>>"${REPORT}" | tee -a "${REPORT}"
-import sys
-from pathlib import Path
-common = Path("experiments/opt_20260629_method_exploration/common")
-sys.path.insert(0, str(common.resolve()))
-from plot_utils import matplotlib_available
-print("[INFO] matplotlib_available:", matplotlib_available())
-PY
-fi
-
-# --- plot_utils skip (only if matplotlib missing) ---
-if ! python -c "import matplotlib" 2>/dev/null; then
-  log ""
-  log "--- plot skip behavior (no matplotlib) ---"
-  if python "${EXP}/05_ppr_topk_lite_design/code/plot_ppr_topk_results.py" 2>>"${REPORT}" | tee -a "${REPORT}"; then
-    pass "plot_ppr_topk_results exits 0 without matplotlib"
-  else
-    fail "plot_ppr_topk_results should exit 0 without matplotlib"
-  fi
-else
-  skip "plot skip test — matplotlib present locally"
-fi
-
-# --- no writes to forbidden paths in server scripts ---
-log ""
-log "--- forbidden output paths in server_scripts ---"
-if grep -R "server_results/" "${EXP}/server_scripts/"*.sh 2>/dev/null | grep -v "Does NOT write" | grep -v "#" | tee -a "${REPORT}"; then
-  warn "found server_results references in shell (review above)"
-else
-  pass "no active server_results writes in server_scripts"
+  fail "import_smoke_checks.py — see output above"
 fi
 
 log ""
