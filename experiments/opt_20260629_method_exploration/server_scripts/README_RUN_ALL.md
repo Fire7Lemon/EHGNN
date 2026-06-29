@@ -72,6 +72,14 @@ P3（Sampled-LP，两个 ratio）与 P4（蒸馏，含 teacher 训练）耗时�
 
 **数据路径**：各 Python 入口脚本默认 `PROJECT_ROOT/data/`（末尾带 `/`），shell 脚本无需传 `--path`。
 
+**审计后**：先跑 smoke test：
+
+```bash
+bash experiments/opt_20260629_method_exploration/server_scripts/smoke_test_method_exploration.sh
+```
+
+所有 `run_p1`–`run_p5` 支持 `PARSE_ONLY=1`。
+
 ---
 
 ## 4. 各任务证据等级

@@ -19,19 +19,14 @@ import numpy as np
 import torch
 
 CODE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
-LP_DIR = PROJECT_ROOT / "Link Prediction"
-COMMON_DIR = EXP_ROOT / "common"
+_pr = CODE_DIR.parents[4]
+_common = _pr / "experiments/opt_20260629_method_exploration/common"
+if str(_common) not in sys.path:
+    sys.path.insert(0, str(_common))
 
-if str(COMMON_DIR) not in sys.path:
-    sys.path.insert(0, str(COMMON_DIR))
-if str(CODE_DIR) not in sys.path:
-    sys.path.insert(0, str(CODE_DIR))
-if str(LP_DIR) not in sys.path:
-    sys.path.insert(0, str(LP_DIR))
+from path_utils import bootstrap_paths, resolve_project_data_path  # noqa: E402
 
-from path_utils import resolve_project_data_path  # noqa: E402
+PROJECT_ROOT, EXP_ROOT, CODE_DIR = bootstrap_paths(__file__, task="lp")
 
 from models import EHGNN  # noqa: E402
 from sampled_lp_loader import (  # noqa: E402

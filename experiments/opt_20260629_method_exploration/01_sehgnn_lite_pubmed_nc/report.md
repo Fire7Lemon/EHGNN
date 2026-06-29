@@ -116,7 +116,9 @@ python -u experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/c
 
 - **2026-06-03 第二次服务器修复（data path）**：P5 已通过 `utils` 导入，但 `load_PubMed` 因 `data_path + dataset` 字符串拼接缺少尾部 `/` 导致 `dataPubMed/node.dat`。已统一使用 `common/path_utils.py` 的 `resolve_project_data_path(PROJECT_ROOT)` → `PROJECT_ROOT/data/`。
 
-## Baseline 参考（EHGNN seed=42）
+- **2026-06-03 parser 路径统一**：`parse_sehgnn_lite_results.py` 改用 `safe_relpath` / `resolve_under_root`（预防性，与 P2/P3 同类修复）。
+
+- **2026-06-03 系统审计**：`bootstrap_paths(task=nc)`、`plot_utils` matplotlib skip、server `PARSE_ONLY=1` + skip-existing。见 `AUDIT_FIX_REPORT.md`。
 
 | 指标 | 值 |
 |------|-----|

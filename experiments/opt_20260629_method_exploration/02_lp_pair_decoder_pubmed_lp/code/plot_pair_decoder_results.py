@@ -5,9 +5,17 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+ROOT = Path(__file__).resolve().parents[4]
+COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from plot_utils import require_matplotlib_or_skip  # noqa: E402
+
+plt = require_matplotlib_or_skip("plot_pair_decoder_results.py")
 
 ROOT = Path(__file__).resolve().parents[4]
 P2 = ROOT / "experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp"

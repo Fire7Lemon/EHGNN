@@ -5,9 +5,16 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
+COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from path_utils import resolve_under_root, safe_relpath  # noqa: E402
+
 P3 = ROOT / "experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp"
 
 RE_BEST = re.compile(
@@ -82,7 +89,7 @@ def parse_log(log_path: Path) -> dict:
         "resample_each_epoch": resample,
         "steps_per_epoch": steps_per_epoch,
         "base_steps_per_epoch": base_steps,
-        "log_path": str(log_path.relative_to(ROOT)).replace("\\", "/"),
+        "log_path": safe_relpath(log_path, ROOT),
     }
 
 
@@ -93,13 +100,15 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    log_path = Path(args.log)
+    log_path = resolve_under_root(args.log, ROOT)
     if not log_path.is_file():
         raise FileNotFoundError(log_path)
 
     p = parse_log(log_path)
-    out_path = Path(args.out) if args.out else P3 / "results" / (
-        log_path.stem + "_parsed.csv"
+    out_path = (
+        resolve_under_root(args.out, ROOT)
+        if args.out
+        else P3 / "results" / (log_path.stem + "_parsed.csv")
     )
 
     row = {

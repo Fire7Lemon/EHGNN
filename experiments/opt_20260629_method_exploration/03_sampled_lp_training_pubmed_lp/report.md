@@ -87,3 +87,7 @@ Code Prepared；未训练
 - **未修改** `Link Prediction/` 正式主线代码。
 
 - **2026-06-03 data path 修复**：同 P2，`main_pubmed_lp_sampled_training.py` 使用 `PROJECT_ROOT/data/` + trailing slash。
+
+- **2026-06-03 parse 路径修复**：P2/P3 同类问题；`parse_sampled_lp_results.py` 已改用 `safe_relpath`。ratio=0.50 主 CSV 已存在时 **无需重跑训练**；`run_p3_sampled_lp_pubmed.sh` 检测 `pubmed_lp_sampled_training_seed42_ratio050.csv` 后 skip，仅 parse/plot；支持 `PARSE_ONLY=1`。
+
+- **2026-06-03 系统审计**：移除 shell PYTHONPATH；parse/plot 容错。见 `AUDIT_FIX_REPORT.md`。

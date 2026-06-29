@@ -126,6 +126,19 @@ Code Prepared；`ppr_topk_lite.py` 可本地 import；demo 需 DGL+数据
 
 - **2026-06-03 第三次服务器失败**：`TypeError: DGLGraph.adj() got an unexpected keyword argument 'scipy_fmt'`。服务器 DGL 版本不支持旧 `adj(scipy_fmt=...)` API。已在 `ppr_topk_lite.py` 新增 `dgl_graph_to_scipy_csr()`，按序尝试 `adj_external` → `old_adj` → `edges_fallback`；demo 日志与 meta JSON 记录 `dgl_version` 与 `dgl_adj_conversion_mode`。
 
+- **2026-06-03 parser 路径统一**：全实验 `parse_*` 脚本统一 `safe_relpath`；`parse_ppr_topk_results.py` 使用 `resolve_under_root`。
+
+## 服务器 Demo 结果（2026-06-03）
+
+| 指标 | 值 |
+|------|-----|
+| PPR runtime | 459.5319 s |
+| RW runtime | 0.2193 s |
+| mean Jaccard | 0.0844 |
+| mean overlap@20 | 0.1096 |
+
+**工程结论：** 当前朴素 PPR-lite（power iteration, K=20, α=0.15, 500 nodes）在 PubMed meta-path `dad_r→dad` 上与 RW Top-K 重叠极低，且 PPR 显著慢于 RW。**不适合**作为 RW Top-K 的直接替代；仅保留为 design/demo 与后续 push-PPR / 调参的起点。详见 `AUDIT_FIX_REPORT.md`。
+
 ## 后续接入 EHGNN 说明
 
 1. 在 `random_walk_sim` 处增加 `mode=ppr|rw` 分支

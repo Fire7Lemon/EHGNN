@@ -114,3 +114,7 @@ Best Macro **0.6313**，Micro **0.6512** — `pubmed_seed_42.txt`
 - **未修改** `Node Classification/` 正式主线代码。
 
 - **2026-06-03 data path 修复**：`main_pubmed_nc_distill.py` 使用 `resolve_project_data_path(PROJECT_ROOT)`；`ehgnn_precompute.py` 无 `load_PubMed` 调用，无需改动。
+
+- **2026-06-03 parser 路径统一**：`parse_distill_results.py` 改用 `safe_relpath`（预防性）。
+
+- **2026-06-03 系统审计**：`TEACHER_MODE=load` 当 logits 存在、`PARSE_ONLY=1`、plot skip。见 `AUDIT_FIX_REPORT.md`。

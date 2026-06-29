@@ -17,6 +17,12 @@ import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[4]  # project root (EHGNN)
 EXP = ROOT / "experiments" / "opt_20260629_method_exploration"
+COMMON = EXP / "common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from path_utils import safe_relpath  # noqa: E402
+
 P0 = EXP / "00_existing_results"
 SEEDS = [42, 3407, 2026, 6666, 8888]
 
@@ -181,7 +187,7 @@ def parse_dblp_lp_log(log_path: Path, seed: int | None = None) -> dict:
 
     return {
         "seed": seed,
-        "log_path": str(log_path.relative_to(ROOT)).replace("\\", "/"),
+        "log_path": safe_relpath(log_path, ROOT),
         "is_complete": is_complete,
         "has_oom": text_flags["has_oom"],
         "has_traceback": text_flags["has_traceback"],
@@ -239,7 +245,7 @@ def scan_all_logs() -> list[dict]:
                 p.suffix in {".log", ".txt", ".csv"}
                 or "summary" in p.name.lower()
             ):
-                rel = str(p.relative_to(ROOT)).replace("\\", "/")
+                rel = safe_relpath(p, ROOT)
                 tag = []
                 name_low = p.name.lower()
                 for kw in keywords:

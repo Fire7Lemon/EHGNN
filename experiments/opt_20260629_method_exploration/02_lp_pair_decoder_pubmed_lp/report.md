@@ -112,3 +112,7 @@ Best AUC **0.5489**，AP **0.5214**，来源 `server_results/2026-06-02_/.../pub
 - **未修改** `Link Prediction/main.py`、`utils.py`、`models.py`。
 
 - **2026-06-03 data path 修复**：`load_PubMed` 需 `PROJECT_ROOT/data/` 且末尾带 `/`；`main_pubmed_lp_pair_decoder.py` 已改用 `resolve_project_data_path`。
+
+- **2026-06-03 parse 路径修复**：主实验可跑通，但 `parse_pair_decoder_results.py` 中 `log_path.relative_to(ROOT)` 因相对 log 与绝对 ROOT 混用失败。已统一 `common/path_utils.safe_relpath` + `resolve_under_root`；`run_p2_pair_decoder_pubmed_lp.sh` 支持 `PARSE_ONLY=1` 与主 CSV 存在时 skip training。
+
+- **2026-06-03 系统审计**：移除 shell PYTHONPATH；parse/plot `\|\| [WARN]`。见 `AUDIT_FIX_REPORT.md`。

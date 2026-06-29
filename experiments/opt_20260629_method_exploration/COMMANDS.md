@@ -334,3 +334,34 @@ python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lit
 ```
 
 **未修改**正式主线代码。
+
+---
+
+## 2026-06-03 — P2/P3 parse 相对路径修复
+
+**问题**：主实验成功，parse 阶段 `ValueError: ... is not in the subpath of ROOT`（相对 `log_path` vs 绝对 `ROOT`）。  
+**修复**：`common/path_utils.py` 新增 `safe_relpath`、`resolve_under_root`；P1–P5 parse + P0 扫描脚本全部替换 `relative_to(ROOT)`。
+
+**Server 容错**：
+
+- `run_p2_pair_decoder_pubmed_lp.sh`：`PARSE_ONLY=1`；主 CSV 存在 skip training；parse/plot 失败仅 WARN
+- `run_p3_sampled_lp_pubmed.sh`：ratio050 CSV 存在 skip training；`PARSE_ONLY=1`
+
+```powershell
+python -m py_compile experiments/opt_20260629_method_exploration/common/path_utils.py
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/parse_sehgnn_lite_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/parse_pair_decoder_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/parse_sampled_lp_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/parse_distill_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/parse_ppr_topk_results.py
+```
+
+---
+
+## 2026-06-03 — 系统性工程审计
+
+见 `AUDIT_FIX_REPORT.md` 与 `server_scripts/smoke_test_method_exploration.sh`。
+
+**修复摘要**：`bootstrap_paths` / `add_source_dir(nc|lp)`、`plot_utils` matplotlib skip、全 stage `PARSE_ONLY=1` + skip-existing、移除 shell `PYTHONPATH` 混用。
+
+**本地**：Windows 无 bash 时手动 `py_compile`；smoke test 在服务器执行。

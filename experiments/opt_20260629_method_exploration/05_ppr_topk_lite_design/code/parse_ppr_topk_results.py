@@ -6,9 +6,15 @@ import argparse
 import csv
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
+COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from path_utils import resolve_under_root, safe_relpath  # noqa: E402
 P5 = ROOT / "experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design"
 RESULTS = P5 / "results"
 
@@ -38,15 +44,15 @@ def main():
     ap.add_argument("--out", type=str, default=str(RESULTS / "ppr_topk_summary.csv"))
     args = ap.parse_args()
 
-    row = parse_log(Path(args.log))
-    meta_path = Path(args.meta)
+    row = parse_log(resolve_under_root(args.log, ROOT))
+    meta_path = resolve_under_root(args.meta, ROOT)
     if meta_path.is_file():
         row.update(json.loads(meta_path.read_text(encoding="utf-8")))
 
     if not row:
         row = {"status": "missing", "note": "no log or meta found"}
 
-    out_path = Path(args.out)
+    out_path = resolve_under_root(args.out, ROOT)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fields = list(row.keys())
     with open(out_path, "w", newline="", encoding="utf-8") as f:

@@ -5,9 +5,16 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
+COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from path_utils import resolve_under_root, safe_relpath  # noqa: E402
+
 P2 = ROOT / "experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp"
 DEFAULT_LOG = P2 / "logs/pubmed_lp_pair_decoder_seed42_pair_mlp.log"
 DEFAULT_OUT = P2 / "results/pubmed_lp_pair_decoder_seed42_pair_mlp_parsed.csv"
@@ -67,7 +74,7 @@ def parse_log(log_path: Path) -> dict:
         "load_data_time_sec": load_sec,
         "sim_time_sec": sim_sec,
         "preprocess_time_sec": preprocess,
-        "log_path": str(log_path.relative_to(ROOT)).replace("\\", "/"),
+        "log_path": safe_relpath(log_path, ROOT),
     }
 
 
@@ -79,7 +86,7 @@ def main():
     ap.add_argument("--decoder", type=str, default="pair_mlp")
     args = ap.parse_args()
 
-    log_path = Path(args.log)
+    log_path = resolve_under_root(args.log, ROOT)
     if not log_path.is_file():
         raise FileNotFoundError("Log not found: {}".format(log_path))
 
@@ -104,7 +111,7 @@ def main():
         "note": "parsed from log",
     }
 
-    out_path = Path(args.out)
+    out_path = resolve_under_root(args.out, ROOT)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fields = list(row.keys())
     with open(out_path, "w", newline="", encoding="utf-8") as f:

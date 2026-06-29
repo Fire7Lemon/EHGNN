@@ -15,10 +15,10 @@
 - `run_p2_pair_decoder_pubmed_lp.sh` — **已创建**
 - `run_p3_sampled_lp_pubmed.sh` — **已创建**
 - `run_p4_distill_pubmed_nc.sh` — **已创建**
-- `run_p5_ppr_topk_demo.sh` — **已创建**
-- `check_server_before_opt_runs.sh` — **已创建**（运行前环境检查）
-- `run_all_method_exploration.sh` — **已创建**（P5→P1→P2→P3→P4 总控）
-- 总控说明见 `README_RUN_ALL.md`
+- `run_all_method_exploration.sh` — **已创建**
+- `smoke_test_method_exploration.sh` — **已创建**（审计 dry-run）
+- `check_server_before_opt_runs.sh` — **已创建**
+- 总控说明见 `README_RUN_ALL.md`；审计见 `AUDIT_FIX_REPORT.md`
 
 ## TODO
 

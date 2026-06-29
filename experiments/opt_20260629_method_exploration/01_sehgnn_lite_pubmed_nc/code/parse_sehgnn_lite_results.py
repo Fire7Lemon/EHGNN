@@ -5,9 +5,15 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
+COMMON = ROOT / "experiments/opt_20260629_method_exploration/common"
+if str(COMMON) not in sys.path:
+    sys.path.insert(0, str(COMMON))
+
+from path_utils import resolve_under_root, safe_relpath  # noqa: E402
 P1 = ROOT / "experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc"
 DEFAULT_LOG = P1 / "logs/pubmed_nc_sehgnn_lite_seed42_concat.log"
 DEFAULT_OUT = P1 / "results/pubmed_nc_sehgnn_lite_seed42_concat_parsed.csv"
@@ -60,7 +66,7 @@ def parse_log(log_path: Path) -> dict:
         best_epoch = -1
 
     return {
-        "log_path": str(log_path.relative_to(ROOT)).replace("\\", "/"),
+        "log_path": safe_relpath(log_path, ROOT),
         "best_macro_f1": best_macro,
         "best_micro_f1": best_micro,
         "best_epoch": best_epoch,
@@ -81,7 +87,7 @@ def main():
     ap.add_argument("--fusion", type=str, default="concat")
     args = ap.parse_args()
 
-    log_path = Path(args.log)
+    log_path = resolve_under_root(args.log, ROOT)
     if not log_path.is_file():
         raise FileNotFoundError("Log not found: {}".format(log_path))
 
@@ -103,7 +109,7 @@ def main():
         "note": "from log via parse_sehgnn_lite_results.py",
     }
 
-    out_path = Path(args.out)
+    out_path = resolve_under_root(args.out, ROOT)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fields = list(row.keys())
     write_header = not out_path.exists()
