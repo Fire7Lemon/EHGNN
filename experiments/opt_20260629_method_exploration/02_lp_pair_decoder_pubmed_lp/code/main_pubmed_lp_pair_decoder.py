@@ -20,12 +20,18 @@ import torch
 
 CODE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
+EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
 LP_DIR = PROJECT_ROOT / "Link Prediction"
+COMMON_DIR = EXP_ROOT / "common"
 
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 if str(LP_DIR) not in sys.path:
     sys.path.insert(0, str(LP_DIR))
+
+from path_utils import resolve_project_data_path  # noqa: E402
 
 from lp_pair_decoder_model import build_decoder  # noqa: E402
 from models import EHGNN  # noqa: E402
@@ -51,7 +57,8 @@ METAPATHS_PUBMED = [
 def parse_args():
     p = argparse.ArgumentParser(description="P2 LP Pair Decoder PubMed LP")
     p.add_argument("--dataset", type=str, default="PubMed")
-    p.add_argument("--path", type=str, default="../data/")
+    p.add_argument("--path", type=str, default="data",
+                   help="Optional absolute data root; default PROJECT_ROOT/data/")
     p.add_argument("--is_normalize", action="store_true")
     p.add_argument("--wo_l2", action="store_true")
     p.add_argument("--wo_mweight", action="store_true")
@@ -143,9 +150,8 @@ def main():
     print(args)
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
 
-    data_path = args.path
-    if not Path(data_path).is_absolute():
-        data_path = str(LP_DIR / args.path)
+    data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
+    print("data_path:", data_path)
 
     t0 = time.perf_counter()
     g, features, train_links, test_links, labels = load_PubMed(

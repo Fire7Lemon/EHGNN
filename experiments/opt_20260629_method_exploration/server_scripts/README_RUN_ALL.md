@@ -70,6 +70,8 @@ bash experiments/opt_20260629_method_exploration/server_scripts/run_p2_pair_deco
 
 P3（Sampled-LP，两个 ratio）与 P4（蒸馏，含 teacher 训练）耗时更长，建议环境检查通过后再跑总控或单独执行。
 
+**数据路径**：各 Python 入口脚本默认 `PROJECT_ROOT/data/`（末尾带 `/`），shell 脚本无需传 `--path`。
+
 ---
 
 ## 4. 各任务证据等级

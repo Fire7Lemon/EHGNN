@@ -122,6 +122,8 @@ Code Prepared；`ppr_topk_lite.py` 可本地 import；demo 需 DGL+数据
 - **修复**：改用 `Path(__file__).resolve().parents[4]`；`if str(NC_DIR) not in sys.path: sys.path.insert(0, ...)`；`run_p5_ppr_topk_demo.sh` 增加 `export PYTHONPATH="$PROJECT_ROOT/Node Classification:..."`。
 - **未修改** `Node Classification/` 正式主线代码。
 
+- **2026-06-03 第二次服务器失败**：`FileNotFoundError: .../dataPubMed/node.dat` — `load_PubMed` 使用 `data_path + dataset` 拼接，路径必须以 `/` 结尾。已修复为 `resolve_project_data_path(PROJECT_ROOT)` → 绝对路径 `PROJECT_ROOT/data/`。
+
 ## 后续接入 EHGNN 说明
 
 1. 在 `random_walk_sim` 处增加 `mode=ppr|rw` 分支

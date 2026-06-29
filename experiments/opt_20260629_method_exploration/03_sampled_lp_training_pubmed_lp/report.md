@@ -85,3 +85,5 @@ Code Prepared；未训练
 
 - **2026-06-03**：与 P2 相同，`utils` 导入需 `Link Prediction` 在 `sys.path`；已修复 `main_pubmed_lp_sampled_training.py`（`parents[4]`）及 `run_p3_sampled_lp_pubmed.sh`（`PYTHONPATH`）。
 - **未修改** `Link Prediction/` 正式主线代码。
+
+- **2026-06-03 data path 修复**：同 P2，`main_pubmed_lp_sampled_training.py` 使用 `PROJECT_ROOT/data/` + trailing slash。

@@ -112,6 +112,14 @@ python experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code
   - alpha=0.15
   - num_iters=10
 - 注意：这是邻居选择替代方案的 design/demo，不训练模型，不代表完整替代 EHGNN 的 RW/HPPR 流程。
+- **2026-06-03 修复**：utils 导入（`parents[4]`）+ data path 尾部 `/`（`PROJECT_ROOT/data/`）；修复后请重新跑 P5。
+
+## 服务器运行前检查清单
+
+1. 同步最新 `experiments/opt_20260629_method_exploration/`（含 `common/path_utils.py`）
+2. 可选：`bash server_scripts/check_server_before_opt_runs.sh`（环境变更时建议重跑）
+3. 轻量验证：`bash server_scripts/run_p5_ppr_topk_demo.sh`
+4. 全量：`bash server_scripts/run_all_method_exploration.sh`
 
 ## 明确不在此队列（今日禁止）
 

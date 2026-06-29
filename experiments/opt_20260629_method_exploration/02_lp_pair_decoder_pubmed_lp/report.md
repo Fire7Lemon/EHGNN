@@ -110,3 +110,5 @@ Best AUC **0.5489**，AP **0.5214**，来源 `server_results/2026-06-02_/.../pub
 - **2026-06-03 服务器 P5 首次运行**暴露同类问题：`utils` 位于 `Link Prediction/utils.py`，从项目根运行实验脚本时需显式 `sys.path` / `PYTHONPATH`。
 - **修复**：`main_pubmed_lp_pair_decoder.py` 使用 `parents[4]` 定位 EHGNN 根目录并插入 `Link Prediction`；`run_p2_pair_decoder_pubmed_lp.sh` 增加 `export PYTHONPATH="$PROJECT_ROOT/Link Prediction:..."`。
 - **未修改** `Link Prediction/main.py`、`utils.py`、`models.py`。
+
+- **2026-06-03 data path 修复**：`load_PubMed` 需 `PROJECT_ROOT/data/` 且末尾带 `/`；`main_pubmed_lp_pair_decoder.py` 已改用 `resolve_project_data_path`。

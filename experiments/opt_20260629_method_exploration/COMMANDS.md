@@ -296,3 +296,25 @@ python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lit
 **未修改**：`Node Classification/`、`Link Prediction/` 下 main/utils/models。
 
 **py_compile 结果**：上述 5 个入口脚本 + 各 P1–P5 parse/plot/工具脚本共 23 个文件 **全部通过**（2026-06-03 本地）。
+
+---
+
+## 2026-06-03 — data path trailing slash 修复（P1–P5）
+
+**问题**：P5 第二次服务器运行报 `FileNotFoundError: .../dataPubMed/node.dat`。  
+**根因**：`utils.load_PubMed` 使用 `path = data_path + data_name + '/'`；实验脚本传入 `str(Path(...))` 无尾部 `/`，且曾错误解析为 `Node Classification/../data`。
+
+**修复**：
+
+```text
+common/path_utils.py                    # ensure_trailing_slash, resolve_project_data_path
+01_.../run_pubmed_nc_sehgnn_lite.py
+02_.../main_pubmed_lp_pair_decoder.py
+03_.../main_pubmed_lp_sampled_training.py
+04_.../main_pubmed_nc_distill.py
+05_.../demo_pubmed_ppr_topk.py
+```
+
+默认 `data_path = ensure_trailing_slash(PROJECT_ROOT / "data")`；`--path` 仅绝对路径可覆盖。
+
+**未修改**正式主线 `utils.py`。

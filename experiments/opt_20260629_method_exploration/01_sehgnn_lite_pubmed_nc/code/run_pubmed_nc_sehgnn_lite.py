@@ -22,12 +22,18 @@ import torch.nn.functional as F
 # --- project paths (parents[4] = EHGNN repo root) ---
 CODE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
+EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
 NC_DIR = PROJECT_ROOT / "Node Classification"
+COMMON_DIR = EXP_ROOT / "common"
 
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 if str(NC_DIR) not in sys.path:
     sys.path.insert(0, str(NC_DIR))
+
+from path_utils import resolve_project_data_path  # noqa: E402
 
 from ehgnn_precompute import build_node_views, count_parameters  # noqa: E402
 from sehgnn_lite_model import build_sehgnn_lite_head  # noqa: E402
@@ -46,8 +52,8 @@ METAPATHS_PUBMED = [
 def parse_args():
     p = argparse.ArgumentParser(description="SeHGNN-lite PubMed NC")
     p.add_argument("--dataset", type=str, default="PubMed")
-    p.add_argument("--path", type=str, default="../data/",
-                   help="Data root relative to Node Classification/ when cwd is NC")
+    p.add_argument("--path", type=str, default="data",
+                   help="Optional absolute data root; default PROJECT_ROOT/data/")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--epochs", type=int, default=100)
     p.add_argument("--hidden", type=int, default=256)
@@ -96,12 +102,10 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    # Run from project root; data path matches Node Classification/main.py default
-    data_path = args.path
-    if not Path(data_path).is_absolute():
-        data_path = str(NC_DIR / args.path)
+    data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
 
     print(args)
+    print("data_path:", data_path)
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
 
     t0 = time.perf_counter()

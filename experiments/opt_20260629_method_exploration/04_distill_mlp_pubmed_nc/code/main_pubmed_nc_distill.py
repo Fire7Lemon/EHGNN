@@ -24,13 +24,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
 NC_DIR = PROJECT_ROOT / "Node Classification"
 P1_CODE = EXP_ROOT / "01_sehgnn_lite_pubmed_nc" / "code"
+COMMON_DIR = EXP_ROOT / "common"
 
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 if str(NC_DIR) not in sys.path:
     sys.path.insert(0, str(NC_DIR))
 if P1_CODE.is_dir() and str(P1_CODE) not in sys.path:
     sys.path.insert(0, str(P1_CODE))
+
+from path_utils import resolve_project_data_path  # noqa: E402
 
 from distillation_losses import mixed_distill_loss  # noqa: E402
 from mlp_student_model import MLPStudent, measure_inference_time  # noqa: E402
@@ -56,7 +61,8 @@ METAPATHS_PUBMED = [
 def parse_args():
     p = argparse.ArgumentParser(description="P4 EHGNN-to-MLP Distillation PubMed NC")
     p.add_argument("--dataset", type=str, default="PubMed")
-    p.add_argument("--path", type=str, default="../data/")
+    p.add_argument("--path", type=str, default="data",
+                   help="Optional absolute data root; default PROJECT_ROOT/data/")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--teacher_epochs", type=int, default=100)
     p.add_argument("--student_epochs", type=int, default=200)
@@ -323,7 +329,8 @@ def main():
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
     results = out_dir(args.root_out)
     paths = teacher_paths(results, args.seed)
-    data_path = args.path if Path(args.path).is_absolute() else str(NC_DIR / args.path)
+    data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
+    print("data_path:", data_path)
 
     t0 = time.perf_counter()
     g, features, labels, idx_train, idx_test = load_PubMed(data_path, args.dataset, False)

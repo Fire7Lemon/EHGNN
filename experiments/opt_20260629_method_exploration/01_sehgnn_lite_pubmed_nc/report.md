@@ -114,6 +114,8 @@ python -u experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/c
 - **修复**：入口脚本改用 `Path(__file__).resolve().parents[4]`，并在 `from utils import ...` 前显式插入 `Node Classification`；对应 server 脚本增加 `export PYTHONPATH="$PROJECT_ROOT/Node Classification:..."`。
 - **未修改** `Node Classification/main.py`、`utils.py`、`models.py`。
 
+- **2026-06-03 第二次服务器修复（data path）**：P5 已通过 `utils` 导入，但 `load_PubMed` 因 `data_path + dataset` 字符串拼接缺少尾部 `/` 导致 `dataPubMed/node.dat`。已统一使用 `common/path_utils.py` 的 `resolve_project_data_path(PROJECT_ROOT)` → `PROJECT_ROOT/data/`。
+
 ## Baseline 参考（EHGNN seed=42）
 
 | 指标 | 值 |

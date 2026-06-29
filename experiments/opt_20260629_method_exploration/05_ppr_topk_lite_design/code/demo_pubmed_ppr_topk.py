@@ -19,12 +19,18 @@ import torch
 
 CODE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
+EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
 NC_DIR = PROJECT_ROOT / "Node Classification"
+COMMON_DIR = EXP_ROOT / "common"
 
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
 if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 if str(NC_DIR) not in sys.path:
     sys.path.insert(0, str(NC_DIR))
+
+from path_utils import resolve_project_data_path  # noqa: E402
 
 from ppr_topk_lite import (  # noqa: E402
     build_csr_from_topk,
@@ -50,7 +56,8 @@ WALK_NUM = 100
 def parse_args():
     p = argparse.ArgumentParser(description="P5 PPR-TopK PubMed demo")
     p.add_argument("--dataset", type=str, default="PubMed")
-    p.add_argument("--path", type=str, default="../data/")
+    p.add_argument("--path", type=str, default="data",
+                   help="Optional absolute data root; default PROJECT_ROOT/data/")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_target_nodes", type=int, default=500)
     p.add_argument("--k", type=int, default=20)
@@ -106,7 +113,8 @@ def main():
     torch.manual_seed(args.seed)
     print(args)
 
-    data_path = args.path if Path(args.path).is_absolute() else str(NC_DIR / args.path)
+    data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
+    print("data_path:", data_path)
     results_dir = Path(args.root_out) / "05_ppr_topk_lite_design" / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
 
