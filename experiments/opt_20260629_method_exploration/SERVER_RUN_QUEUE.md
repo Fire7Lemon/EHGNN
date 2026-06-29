@@ -112,7 +112,7 @@ python experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code
   - alpha=0.15
   - num_iters=10
 - 注意：这是邻居选择替代方案的 design/demo，不训练模型，不代表完整替代 EHGNN 的 RW/HPPR 流程。
-- **2026-06-03 修复**：utils 导入（`parents[4]`）+ data path 尾部 `/`（`PROJECT_ROOT/data/`）；修复后请重新跑 P5。
+- **2026-06-03 修复**：utils 导入（`parents[4]`）+ data path 尾部 `/` + DGL `adj_external` 兼容层；修复后请重新跑 P5。
 
 ## 服务器运行前检查清单
 

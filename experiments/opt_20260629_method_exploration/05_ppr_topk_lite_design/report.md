@@ -124,6 +124,8 @@ Code Prepared；`ppr_topk_lite.py` 可本地 import；demo 需 DGL+数据
 
 - **2026-06-03 第二次服务器失败**：`FileNotFoundError: .../dataPubMed/node.dat` — `load_PubMed` 使用 `data_path + dataset` 拼接，路径必须以 `/` 结尾。已修复为 `resolve_project_data_path(PROJECT_ROOT)` → 绝对路径 `PROJECT_ROOT/data/`。
 
+- **2026-06-03 第三次服务器失败**：`TypeError: DGLGraph.adj() got an unexpected keyword argument 'scipy_fmt'`。服务器 DGL 版本不支持旧 `adj(scipy_fmt=...)` API。已在 `ppr_topk_lite.py` 新增 `dgl_graph_to_scipy_csr()`，按序尝试 `adj_external` → `old_adj` → `edges_fallback`；demo 日志与 meta JSON 记录 `dgl_version` 与 `dgl_adj_conversion_mode`。
+
 ## 后续接入 EHGNN 说明
 
 1. 在 `random_walk_sim` 处增加 `mode=ppr|rw` 分支

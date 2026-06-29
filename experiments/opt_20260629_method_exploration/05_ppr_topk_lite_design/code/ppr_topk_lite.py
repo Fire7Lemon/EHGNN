@@ -135,3 +135,35 @@ def overlap_at_k(a: list | set, b: list | set, k: int) -> float:
     if k <= 0:
         return 0.0
     return len(sa & sb) / float(k)
+
+
+def dgl_graph_to_scipy_csr(graph, transpose: bool = False) -> tuple[sp.csr_matrix, str]:
+    """Convert a DGL homogeneous graph to scipy CSR across DGL versions."""
+    # Preferred DGL 2.x external adjacency API
+    if hasattr(graph, "adj_external"):
+        try:
+            mat = graph.adj_external(transpose=transpose, scipy_fmt="csr")
+            return sp.csr_matrix(mat).tocsr(), "adj_external"
+        except TypeError:
+            pass
+
+    # Old DGL API
+    try:
+        mat = graph.adj(scipy_fmt="csr", transpose=transpose)
+        return sp.csr_matrix(mat).tocsr(), "old_adj"
+    except TypeError:
+        pass
+
+    # Fallback: build from edges manually
+    src, dst = graph.edges()
+    src_np = src.detach().cpu().numpy()
+    dst_np = dst.detach().cpu().numpy()
+
+    if transpose:
+        row, col = dst_np, src_np
+    else:
+        row, col = src_np, dst_np
+
+    data = np.ones(len(row), dtype=np.float32)
+    n = graph.num_nodes()
+    return sp.csr_matrix((data, (row, col)), shape=(n, n)), "edges_fallback"

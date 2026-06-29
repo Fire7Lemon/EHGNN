@@ -318,3 +318,19 @@ common/path_utils.py                    # ensure_trailing_slash, resolve_project
 默认 `data_path = ensure_trailing_slash(PROJECT_ROOT / "data")`；`--path` 仅绝对路径可覆盖。
 
 **未修改**正式主线 `utils.py`。
+
+---
+
+## 2026-06-03 — P5 DGL adj API 兼容修复
+
+**问题**：`DGLGraph.adj() got an unexpected keyword argument 'scipy_fmt'`。  
+**修复**：`ppr_topk_lite.dgl_graph_to_scipy_csr()` — `adj_external` / `old_adj` / `edges_fallback`；`demo_pubmed_ppr_topk.py` 调用并写入 meta。
+
+```powershell
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/ppr_topk_lite.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/parse_ppr_topk_results.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/plot_ppr_topk_results.py
+```
+
+**未修改**正式主线代码。

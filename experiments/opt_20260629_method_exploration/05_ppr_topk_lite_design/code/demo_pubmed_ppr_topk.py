@@ -34,6 +34,7 @@ from path_utils import resolve_project_data_path  # noqa: E402
 
 from ppr_topk_lite import (  # noqa: E402
     build_csr_from_topk,
+    dgl_graph_to_scipy_csr,
     jaccard_topk,
     overlap_at_k,
     ppr_power_iteration,
@@ -72,19 +73,22 @@ def parse_args():
     return p.parse_args()
 
 
-def build_metapath_adjacency(g, metapath: list[str]) -> tuple[sp.csr_matrix, int, int]:
+def build_metapath_adjacency(
+    g, metapath: list[str]
+) -> tuple[sp.csr_matrix, int, int, str, str]:
     """
     Build meta-path adjacency on source-type local id space via DGL metapath_reachable_graph.
-    Returns (adj_csr, num_src, num_dst) where adj is (num_src, num_dst).
+    Returns (adj_csr, num_src, num_dst, adj_conversion_mode, dgl_version).
     """
     import dgl
 
+    dgl_ver = dgl.__version__
+    print("dgl_version:", dgl_ver)
     mg = dgl.metapath_reachable_graph(g, metapath)
-    adj = mg.adj(scipy_fmt="csr", transpose=False)
-    num_src = mg.num_nodes()
-    num_dst = num_src if mg.num_nodes() == mg.num_nodes() else mg.num_nodes()
-    # metapath_reachable_graph: homogeneous graph on starting ntype
-    return sp.csr_matrix(adj), mg.num_nodes(), mg.num_nodes()
+    adj, mode = dgl_graph_to_scipy_csr(mg, transpose=False)
+    print("dgl_adj_conversion_mode:", mode)
+    n = mg.num_nodes()
+    return adj, n, n, mode, dgl_ver
 
 
 def rw_topk_for_seeds(g, metapath, seed_indices, k, walk_num, random_flag=False):
@@ -127,7 +131,7 @@ def main():
     print("Metapath:", metapath)
 
     t1 = time.perf_counter()
-    mp_adj, num_src, _ = build_metapath_adjacency(g, metapath)
+    mp_adj, num_src, _, adj_mode, dgl_ver = build_metapath_adjacency(g, metapath)
     build_sec = time.perf_counter() - t1
     print("Metapath adjacency shape: {} (build {:.4f}s)".format(mp_adj.shape, build_sec))
 
@@ -215,6 +219,8 @@ def main():
         "rw_runtime_sec": round(rw_sec, 6),
         "load_data_sec": round(load_sec, 6),
         "metapath_adj_build_sec": round(build_sec, 6),
+        "dgl_version": dgl_ver,
+        "dgl_adj_conversion_mode": adj_mode,
         "ppr_csr_nnz": int(ppr_csr.nnz),
         "rw_csr_nnz": int(rw_csr.nnz),
         "evidence_level": "Prototype",
