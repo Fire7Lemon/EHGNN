@@ -80,3 +80,8 @@ Code Prepared；未训练
 ## 结论边界
 
 **当前仅为采样式链路预测训练协议的单 seed quick validation 准备。该方法改变训练协议，因此不能直接等价于论文默认训练设置，也不能作为正式 5-seed 结论。**
+
+## 风险与修复记录
+
+- **2026-06-03**：与 P2 相同，`utils` 导入需 `Link Prediction` 在 `sys.path`；已修复 `main_pubmed_lp_sampled_training.py`（`parents[4]`）及 `run_p3_sampled_lp_pubmed.sh`（`PYTHONPATH`）。
+- **未修改** `Link Prediction/` 正式主线代码。

@@ -19,13 +19,13 @@ import numpy as np
 import torch
 
 CODE_DIR = Path(__file__).resolve().parent
-P3_DIR = CODE_DIR.parent
-EXP_ROOT = P3_DIR.parent
-PROJECT_ROOT = EXP_ROOT.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 LP_DIR = PROJECT_ROOT / "Link Prediction"
 
-sys.path.insert(0, str(CODE_DIR))
-sys.path.insert(0, str(LP_DIR))
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+if str(LP_DIR) not in sys.path:
+    sys.path.insert(0, str(LP_DIR))
 
 from models import EHGNN  # noqa: E402
 from sampled_lp_loader import (  # noqa: E402

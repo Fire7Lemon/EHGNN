@@ -19,13 +19,13 @@ import numpy as np
 import torch
 
 CODE_DIR = Path(__file__).resolve().parent
-P2_DIR = CODE_DIR.parent
-EXP_ROOT = P2_DIR.parent
-PROJECT_ROOT = EXP_ROOT.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 LP_DIR = PROJECT_ROOT / "Link Prediction"
 
-sys.path.insert(0, str(CODE_DIR))
-sys.path.insert(0, str(LP_DIR))
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+if str(LP_DIR) not in sys.path:
+    sys.path.insert(0, str(LP_DIR))
 
 from lp_pair_decoder_model import build_decoder  # noqa: E402
 from models import EHGNN  # noqa: E402

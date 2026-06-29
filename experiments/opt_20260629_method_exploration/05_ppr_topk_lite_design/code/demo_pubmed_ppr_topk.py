@@ -18,13 +18,13 @@ import scipy.sparse as sp
 import torch
 
 CODE_DIR = Path(__file__).resolve().parent
-P5_DIR = CODE_DIR.parent
-EXP_ROOT = P5_DIR.parent
-PROJECT_ROOT = EXP_ROOT.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 NC_DIR = PROJECT_ROOT / "Node Classification"
 
-sys.path.insert(0, str(CODE_DIR))
-sys.path.insert(0, str(NC_DIR))
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+if str(NC_DIR) not in sys.path:
+    sys.path.insert(0, str(NC_DIR))
 
 from ppr_topk_lite import (  # noqa: E402
     build_csr_from_topk,

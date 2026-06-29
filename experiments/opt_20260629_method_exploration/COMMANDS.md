@@ -259,3 +259,40 @@ experiments/opt_20260629_method_exploration/server_scripts/run_p5_ppr_topk_demo.
 
 用途：服务器 PPR-TopK demo + compare + parse + plot。  
 结果：脚本已创建，**未执行**。
+
+---
+
+## 2026-06-03 — utils 导入路径修复（P1–P5）
+
+**问题**：服务器运行 P5 报 `ModuleNotFoundError: No module named 'utils'`。  
+**根因**：实验入口脚本 `PROJECT_ROOT = EXP_ROOT.parent` 少算一层，指向 `experiments/` 而非 EHGNN 根目录。
+
+**修复文件**：
+
+```text
+01_sehgnn_lite_pubmed_nc/code/run_pubmed_nc_sehgnn_lite.py
+02_lp_pair_decoder_pubmed_lp/code/main_pubmed_lp_pair_decoder.py
+03_sampled_lp_training_pubmed_lp/code/main_pubmed_lp_sampled_training.py
+04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py
+05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py
+server_scripts/run_p1_sehgnn_lite_pubmed_nc.sh  (+ PYTHONPATH NC)
+server_scripts/run_p2_pair_decoder_pubmed_lp.sh (+ PYTHONPATH LP)
+server_scripts/run_p3_sampled_lp_pubmed.sh      (+ PYTHONPATH LP)
+server_scripts/run_p4_distill_pubmed_nc.sh      (+ PYTHONPATH NC)
+server_scripts/run_p5_ppr_topk_demo.sh          (+ PYTHONPATH NC)
+```
+
+**py_compile（本地）**：
+
+```powershell
+python -m py_compile experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/code/run_pubmed_nc_sehgnn_lite.py
+python -m py_compile experiments/opt_20260629_method_exploration/02_lp_pair_decoder_pubmed_lp/code/main_pubmed_lp_pair_decoder.py
+python -m py_compile experiments/opt_20260629_method_exploration/03_sampled_lp_training_pubmed_lp/code/main_pubmed_lp_sampled_training.py
+python -m py_compile experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py
+python -m py_compile experiments/opt_20260629_method_exploration/05_ppr_topk_lite_design/code/demo_pubmed_ppr_topk.py
+# + 各 P? parse/plot 工具脚本（见下方结果）
+```
+
+**未修改**：`Node Classification/`、`Link Prediction/` 下 main/utils/models。
+
+**py_compile 结果**：上述 5 个入口脚本 + 各 P1–P5 parse/plot/工具脚本共 23 个文件 **全部通过**（2026-06-03 本地）。

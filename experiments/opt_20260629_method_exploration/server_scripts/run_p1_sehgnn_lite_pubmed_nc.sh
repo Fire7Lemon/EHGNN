@@ -23,6 +23,8 @@ elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
 fi
 conda activate ehgnn
 
+export PYTHONPATH="${PROJECT_ROOT}/Node Classification:${PYTHONPATH:-}"
+
 mkdir -p "${P1_DIR}/logs" "${P1_DIR}/results" "${P1_DIR}/figs"
 
 echo "=== P1 SeHGNN-lite PubMed NC seed=42 concat ==="

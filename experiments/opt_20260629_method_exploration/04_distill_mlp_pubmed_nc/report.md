@@ -107,3 +107,8 @@ Best Macro **0.6313**，Micro **0.6512** — `pubmed_seed_42.txt`
 ## 结论边界
 
 **当前仅为 EHGNN-to-MLP 蒸馏原型和单 seed quick validation 准备。该方法主要探索推理阶段轻量化，不代表降低 EHGNN teacher 的训练成本，也不代表完整 5-seed 验证完成。**
+
+## 风险与修复记录
+
+- **2026-06-03**：P5 服务器首次运行 `ModuleNotFoundError: utils`；P4 同类脚本一并修复：`main_pubmed_nc_distill.py` 使用 `parents[4]` + `Node Classification` 路径；`run_p4_distill_pubmed_nc.sh` 增加 NC `PYTHONPATH`。
+- **未修改** `Node Classification/` 正式主线代码。

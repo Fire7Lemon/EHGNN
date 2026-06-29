@@ -108,6 +108,12 @@ python -u experiments/opt_20260629_method_exploration/01_sehgnn_lite_pubmed_nc/c
 - 不能写「全面优于 EHGNN」
 - 可写「构建了 SeHGNN-lite 原型并在 PubMed NC seed=42 上完成初步验证」（服务器跑完后）
 
+## 风险与修复记录
+
+- **2026-06-03 服务器 P5 首次运行**：`ModuleNotFoundError: No module named 'utils'` — 根因是实验脚本 `PROJECT_ROOT` 少算一层（指向 `experiments/` 而非 EHGNN 根目录），`Node Classification` 未进入 `sys.path`。
+- **修复**：入口脚本改用 `Path(__file__).resolve().parents[4]`，并在 `from utils import ...` 前显式插入 `Node Classification`；对应 server 脚本增加 `export PYTHONPATH="$PROJECT_ROOT/Node Classification:..."`。
+- **未修改** `Node Classification/main.py`、`utils.py`、`models.py`。
+
 ## Baseline 参考（EHGNN seed=42）
 
 | 指标 | 值 |

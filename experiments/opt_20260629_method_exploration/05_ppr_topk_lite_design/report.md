@@ -115,6 +115,13 @@ Code Prepared；`ppr_topk_lite.py` 可本地 import；demo 需 DGL+数据
 
 **当前仅为 PPR-TopK 邻居选择替代方案的设计与小规模 demo 准备。它不训练模型，不代表已经完整替代 EHGNN 的随机游走 / HPPR 近似流程，也不能作为性能优化结论。**
 
+## 风险与修复记录
+
+- **2026-06-03 首次服务器运行失败**：`ModuleNotFoundError: No module named 'utils'`。
+- **根因**：`demo_pubmed_ppr_topk.py` 将 `PROJECT_ROOT` 算成 `experiments/`（`parents[3]`），未正确指向 EHGNN 根目录下的 `Node Classification/utils.py`。
+- **修复**：改用 `Path(__file__).resolve().parents[4]`；`if str(NC_DIR) not in sys.path: sys.path.insert(0, ...)`；`run_p5_ppr_topk_demo.sh` 增加 `export PYTHONPATH="$PROJECT_ROOT/Node Classification:..."`。
+- **未修改** `Node Classification/` 正式主线代码。
+
 ## 后续接入 EHGNN 说明
 
 1. 在 `random_walk_sim` 处增加 `mode=ppr|rw` 分支

@@ -18,6 +18,8 @@ elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
 fi
 conda activate ehgnn
 
+export PYTHONPATH="${PROJECT_ROOT}/Link Prediction:${PYTHONPATH:-}"
+
 mkdir -p "${P3_DIR}/logs" "${P3_DIR}/results" "${P3_DIR}/figs"
 
 COMMON_ARGS=(

@@ -19,15 +19,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-# --- project paths ---
+# --- project paths (parents[4] = EHGNN repo root) ---
 CODE_DIR = Path(__file__).resolve().parent
-P1_DIR = CODE_DIR.parent
-EXP_ROOT = P1_DIR.parent
-PROJECT_ROOT = EXP_ROOT.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 NC_DIR = PROJECT_ROOT / "Node Classification"
 
-sys.path.insert(0, str(CODE_DIR))
-sys.path.insert(0, str(NC_DIR))
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+if str(NC_DIR) not in sys.path:
+    sys.path.insert(0, str(NC_DIR))
 
 from ehgnn_precompute import build_node_views, count_parameters  # noqa: E402
 from sehgnn_lite_model import build_sehgnn_lite_head  # noqa: E402

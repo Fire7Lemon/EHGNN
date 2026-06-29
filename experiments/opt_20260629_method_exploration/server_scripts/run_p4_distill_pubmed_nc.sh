@@ -19,6 +19,8 @@ elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
 fi
 conda activate ehgnn
 
+export PYTHONPATH="${PROJECT_ROOT}/Node Classification:${PYTHONPATH:-}"
+
 mkdir -p "${P4_DIR}/logs" "${P4_DIR}/results" "${P4_DIR}/figs"
 
 echo "=== P4 EHGNN-to-MLP Distillation seed=42 raw ==="

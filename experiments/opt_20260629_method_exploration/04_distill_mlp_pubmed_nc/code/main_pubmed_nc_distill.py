@@ -20,15 +20,16 @@ import torch
 import torch.nn.functional as F
 
 CODE_DIR = Path(__file__).resolve().parent
-P4_DIR = CODE_DIR.parent
-EXP_ROOT = P4_DIR.parent
-PROJECT_ROOT = EXP_ROOT.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+EXP_ROOT = PROJECT_ROOT / "experiments/opt_20260629_method_exploration"
 NC_DIR = PROJECT_ROOT / "Node Classification"
 P1_CODE = EXP_ROOT / "01_sehgnn_lite_pubmed_nc" / "code"
 
-sys.path.insert(0, str(CODE_DIR))
-sys.path.insert(0, str(NC_DIR))
-if P1_CODE.is_dir():
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+if str(NC_DIR) not in sys.path:
+    sys.path.insert(0, str(NC_DIR))
+if P1_CODE.is_dir() and str(P1_CODE) not in sys.path:
     sys.path.insert(0, str(P1_CODE))
 
 from distillation_losses import mixed_distill_loss  # noqa: E402

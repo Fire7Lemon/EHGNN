@@ -19,6 +19,8 @@ elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
 fi
 conda activate ehgnn
 
+export PYTHONPATH="${PROJECT_ROOT}/Link Prediction:${PYTHONPATH:-}"
+
 mkdir -p "${P2_DIR}/logs" "${P2_DIR}/results" "${P2_DIR}/figs"
 
 echo "=== P2 LP Pair Decoder PubMed LP seed=42 pair_mlp ==="

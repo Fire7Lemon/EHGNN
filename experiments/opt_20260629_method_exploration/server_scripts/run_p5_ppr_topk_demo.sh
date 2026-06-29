@@ -18,6 +18,8 @@ elif [ -f "${HOME}/anaconda3/etc/profile.d/conda.sh" ]; then
 fi
 conda activate ehgnn
 
+export PYTHONPATH="${PROJECT_ROOT}/Node Classification:${PYTHONPATH:-}"
+
 mkdir -p "${P5_DIR}/logs" "${P5_DIR}/results" "${P5_DIR}/figs"
 
 echo "=== P5 PPR-TopK-lite PubMed Demo (design only, no training) ==="
