@@ -55,10 +55,16 @@ PARSE_ONLY=1 bash experiments/opt_20260629_method_exploration/server_scripts/run
 
 ### 4. P1 / P4 — 仍需正式训练
 
-P4：`path_utils` import 已修复（2026-06-03）；**先 smoke test，再训练**。
+P4：`path_utils` import 已修复；**`t_typess None` 已修复**。先 smoke test + dry run，再训练。
 
 ```bash
 bash experiments/opt_20260629_method_exploration/server_scripts/smoke_test_method_exploration.sh
+
+python experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py \
+  --dataset PubMed --seed 42 --teacher_epochs 1 --student_epochs 1 \
+  --teacher_mode train --student_input raw --dry_run_runtime_check \
+  --root_out experiments/opt_20260629_method_exploration
+
 bash experiments/opt_20260629_method_exploration/server_scripts/run_p1_sehgnn_lite_pubmed_nc.sh
 bash experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_pubmed_nc.sh
 ```
@@ -82,7 +88,7 @@ bash experiments/opt_20260629_method_exploration/server_scripts/run_all_method_e
 | P3 | Sampled-LP | `03_sampled_lp_training_pubmed_lp/` | PubMed LP | LP | **ratio050 done — run ratio025** | skip050 自动 |
 | P2 | LP Pair Decoder | `02_lp_pair_decoder_pubmed_lp/` | PubMed LP | LP | **Check CSV — parse-only?** | `PARSE_ONLY=1` |
 | P1 | SeHGNN-lite | `01_sehgnn_lite_pubmed_nc/` | PubMed | NC | **Pending train** | |
-| P4 | Distillation | `04_distill_mlp_pubmed_nc/` | PubMed | NC | **Pending train** (path_utils fixed) | smoke test first |
+| P4 | Distillation | `04_distill_mlp_pubmed_nc/` | PubMed | NC | **Pending train** (t_typess fixed) | dry_run → full train |
 
 ## PARSE_ONLY 约定
 

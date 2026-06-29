@@ -82,7 +82,132 @@ def parse_args():
         choices=["raw", "precomputed", "raw_plus_precomputed"],
     )
     p.add_argument("--root_out", type=str, default="experiments/opt_20260629_method_exploration")
+    p.add_argument(
+        "--dry_run_runtime_check",
+        action="store_true",
+        help="Load PubMed, build RW matrices, run one teacher/student forward; no training or result writes",
+    )
     return p.parse_args()
+
+
+def build_rw_similarity_matrices(
+    g,
+    idx_train,
+    idx_test,
+    metapaths,
+    walk_num,
+    k,
+    r_neighbor,
+):
+    """
+    Mirror ``Node Classification/main.py`` PubMed NC RW preprocessing (lines 88–100).
+
+    Returns train/test CSR dicts per meta-path, ``t_typess`` (list of target-type lists),
+    and source node type index ``s_type``.
+    """
+    train_matrixs = []
+    test_matrixs = []
+    t_typess = []
+    s_type = None
+    for metapath in metapaths:
+        train_matrix, t_types, s_type = random_walk_sim(
+            idx_train, g, metapath, walk_num, k, r_neighbor
+        )
+        test_matrix, _, _ = random_walk_sim(
+            idx_test, g, metapath, walk_num, k, r_neighbor
+        )
+        train_matrixs.append(train_matrix)
+        test_matrixs.append(test_matrix)
+        t_typess.append(t_types)
+    return train_matrixs, test_matrixs, t_typess, s_type
+
+
+def create_teacher_ehgnn(g, features, labels, metapaths, args, device):
+    """EHGNN init aligned with ``Node Classification/main.py`` PubMed defaults."""
+    out_dim = int(labels.max().item()) + 1
+    return EHGNN(
+        in_feat=features[0].shape[1],
+        hidden=args.hidden,
+        out_feat=out_dim,
+        n_layer=args.n_layers,
+        alpha=args.alpha,
+        n_metapath=len(metapaths),
+        n_types=len(g.ntypes),
+        wo_l2=False,
+        wo_mweight=False,
+        wo_tweight=False,
+        dropout=args.dropout,
+    ).to(device)
+
+
+TEACHER_SIGNAL_TYPE = "raw_logits"
+
+
+def run_dry_runtime_check(args, device):
+    """Tiny runtime path: data → RW → get_model_need → teacher/student forward; no I/O."""
+    data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
+    g, features, labels, idx_train, idx_test = load_PubMed(
+        data_path, args.dataset, False
+    )
+    print("[P4-DRY-RUN] load data OK")
+
+    n_train = min(32, int(idx_train.shape[0]))
+    n_test = min(32, int(idx_test.shape[0]))
+    idx_train_sub = idx_train[:n_train]
+    idx_test_sub = idx_test[:n_test]
+    walk_num = min(args.walk_num, 5)
+
+    train_matrixs, test_matrixs, t_typess, s_type = build_rw_similarity_matrices(
+        g,
+        idx_train_sub,
+        idx_test_sub,
+        METAPATHS_PUBMED,
+        walk_num,
+        args.K,
+        False,
+    )
+    if not isinstance(t_typess, list) or len(t_typess) != len(METAPATHS_PUBMED):
+        raise RuntimeError("t_typess must be a list with one entry per meta-path")
+    print("[P4-DRY-RUN] teacher graph preprocessing OK")
+
+    teacher = create_teacher_ehgnn(g, features, labels, METAPATHS_PUBMED, args, device)
+    batch_size = min(8, n_train)
+    batch = idx_train_sub[:batch_size]
+    s_idxs, t_idxs, weightss = get_model_need(
+        len(METAPATHS_PUBMED), train_matrixs, t_typess, batch
+    )
+    logits = teacher(
+        features,
+        features[s_type][batch],
+        s_idxs,
+        t_idxs,
+        weightss,
+        t_typess,
+        batch.shape[0],
+        device,
+    )
+    print(
+        "[P4-DRY-RUN] teacher forward OK ({} shape={})".format(
+            TEACHER_SIGNAL_TYPE, tuple(logits.shape)
+        )
+    )
+
+    in_dim = int(features[s_type][idx_train_sub[:1]].shape[1])
+    out_dim = int(labels.max().item()) + 1
+    student = MLPStudent(
+        in_dim=in_dim,
+        hidden_dim=args.student_hidden,
+        num_classes=out_dim,
+        n_layers=args.student_layers,
+        dropout=args.dropout,
+    ).to(device)
+    x_probe = features[s_type][idx_train_sub[:batch_size]].float()
+    if device.type == "cuda":
+        x_probe = x_probe.to(device)
+    s_logits = student(x_probe)
+    print("[P4-DRY-RUN] student forward OK (shape={})".format(tuple(s_logits.shape)))
+    print("[P4-DRY-RUN] PASS")
+    return 0
 
 
 def out_dir(root_out: str) -> Path:
@@ -320,6 +445,10 @@ def main():
 
     print(args)
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
+
+    if args.dry_run_runtime_check:
+        raise SystemExit(run_dry_runtime_check(args, device))
+
     results = out_dir(args.root_out)
     paths = teacher_paths(results, args.seed)
     data_path = resolve_project_data_path(PROJECT_ROOT, args.path)
@@ -331,32 +460,13 @@ def main():
     load_sec = time.perf_counter() - t0
 
     t1 = time.perf_counter()
-    train_matrixs, test_matrixs, t_typess, s_type = [], [], None, None
-    for mp in metapaths:
-        tr, tt, st = random_walk_sim(idx_train, g, mp, args.walk_num, args.K, False)
-        te, _, _ = random_walk_sim(idx_test, g, mp, args.walk_num, args.K, False)
-        train_matrixs.append(tr)
-        test_matrixs.append(te)
-        t_typess.append(tt)
-        if s_type is None:
-            s_type = st
+    train_matrixs, test_matrixs, t_typess, s_type = build_rw_similarity_matrices(
+        g, idx_train, idx_test, metapaths, args.walk_num, args.K, False
+    )
     sim_sec = time.perf_counter() - t1
     preprocess_sec = load_sec + sim_sec
 
-    out_dim = int(labels.max().item()) + 1
-    teacher = EHGNN(
-        in_feat=features[0].shape[1],
-        hidden=args.hidden,
-        out_feat=out_dim,
-        n_layer=args.n_layers,
-        alpha=args.alpha,
-        n_metapath=len(metapaths),
-        n_types=len(g.ntypes),
-        wo_l2=False,
-        wo_mweight=False,
-        wo_tweight=False,
-        dropout=args.dropout,
-    ).to(device)
+    teacher = create_teacher_ehgnn(g, features, labels, metapaths, args, device)
 
     if args.teacher_mode == "load":
         if not paths["checkpoint"].is_file() or not paths["logits"].is_file():
@@ -394,6 +504,7 @@ def main():
                 "test_indices": idx_test,
                 "train_logits": teacher_train_logits,
                 "test_logits": teacher_test_logits,
+                "teacher_signal_type": TEACHER_SIGNAL_TYPE,
                 "note": "teacher raw logits before log_softmax",
             },
             paths["logits"],
@@ -414,6 +525,7 @@ def main():
         args.student_input, features, s_type, train_matrixs, t_typess, idx_train[:1]
     )
     y_train = labels[idx_train].squeeze(1)
+    out_dim = int(labels.max().item()) + 1
 
     student = MLPStudent(
         in_dim=in_dim,

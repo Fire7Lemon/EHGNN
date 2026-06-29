@@ -398,3 +398,30 @@ bash experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_p
 ```
 
 **未修改** `Node Classification/`、`Link Prediction/` 正式主线代码。
+
+---
+
+## 2026-06-03 — P4 teacher 流程对齐（t_typess None）
+
+**问题**：P4 passed import smoke test but failed during real teacher construction: `AttributeError: 'NoneType' object has no attribute 'append'` at `t_typess.append(tt)`. Root cause: `t_typess` initialized as `None` instead of `[]` (unlike `Node Classification/main.py` L91).
+
+**修复**：
+- `build_rw_similarity_matrices()` mirrors main.py L88–100
+- `create_teacher_ehgnn()` mirrors main.py EHGNN init
+- `--dry_run_runtime_check`: load → RW → `get_model_need` → 1 teacher/student forward; no result writes
+- Smoke test upgraded with P4 runtime check
+
+```bash
+python experiments/opt_20260629_method_exploration/04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py \
+  --dataset PubMed --seed 42 --teacher_epochs 1 --student_epochs 1 \
+  --teacher_mode train --student_input raw --dry_run_runtime_check \
+  --root_out experiments/opt_20260629_method_exploration
+```
+
+Teacher signal: **raw logits** (forward output); training uses `log_softmax` + NLLLoss; distillation KL uses raw logits with temperature.
+
+**P4 正式训练**（dry run PASS 后）：
+
+```bash
+bash experiments/opt_20260629_method_exploration/server_scripts/run_p4_distill_pubmed_nc.sh
+```

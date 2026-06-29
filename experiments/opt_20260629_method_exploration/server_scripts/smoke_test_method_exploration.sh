@@ -98,13 +98,34 @@ for f in "${PY_FILES[@]}"; do
   fi
 done
 
-# --- import-level checks (path_utils, plot_utils, parsers, --help) ---
+# --- import-level checks (path_utils, plot_utils, parsers, --help, P4 dry run) ---
 log ""
-log "--- import_smoke_checks (real import / --help) ---"
+log "--- import_smoke_checks (real import / --help / P4 runtime) ---"
 if python "${EXP}/common/import_smoke_checks.py" 2>>"${REPORT}" | tee -a "${REPORT}"; then
   pass "import_smoke_checks.py"
 else
   fail "import_smoke_checks.py — see output above"
+fi
+
+# --- P4 dry run (explicit; also inside import_smoke_checks) ---
+log ""
+log "--- P4 dry_run_runtime_check ---"
+if python "${EXP}/04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py" \
+  --dataset PubMed \
+  --seed 42 \
+  --teacher_epochs 1 \
+  --student_epochs 1 \
+  --teacher_mode train \
+  --student_input raw \
+  --dry_run_runtime_check \
+  --root_out "${EXP}" 2>>"${REPORT}" | tee -a "${REPORT}"; then
+  pass "P4 dry_run_runtime_check"
+else
+  if python -c "import dgl, torch_scatter" 2>/dev/null; then
+    fail "P4 dry_run_runtime_check (DGL present — should pass)"
+  else
+    skip "P4 dry_run_runtime_check — missing dgl/torch_scatter locally"
+  fi
 fi
 
 log ""

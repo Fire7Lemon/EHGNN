@@ -11,6 +11,28 @@ EXP_ROOT = Path(__file__).resolve().parents[1]
 COMMON_DIR = EXP_ROOT / "common"
 PROJECT_ROOT = EXP_ROOT.parents[1]
 
+P4_MAIN = EXP_ROOT / "04_distill_mlp_pubmed_nc/code/main_pubmed_nc_distill.py"
+
+P4_DRY_RUN_CMD = [
+    sys.executable,
+    str(P4_MAIN),
+    "--dataset",
+    "PubMed",
+    "--seed",
+    "42",
+    "--teacher_epochs",
+    "1",
+    "--student_epochs",
+    "1",
+    "--teacher_mode",
+    "train",
+    "--student_input",
+    "raw",
+    "--dry_run_runtime_check",
+    "--root_out",
+    "experiments/opt_20260629_method_exploration",
+]
+
 ENTRY_HELP = [
     EXP_ROOT / "01_sehgnn_lite_pubmed_nc/code/run_pubmed_nc_sehgnn_lite.py",
     EXP_ROOT / "02_lp_pair_decoder_pubmed_lp/code/main_pubmed_lp_pair_decoder.py",
@@ -118,6 +140,38 @@ def check_entry_help(py_file: Path, timeout: int = 60) -> tuple[str, str]:
     return "fail", "exit {}: {}".format(r.returncode, err.strip()[:300])
 
 
+def check_p4_dry_runtime(timeout: int = 600) -> tuple[str, str]:
+    """P4 tiny runtime check (RW + one teacher/student forward)."""
+    try:
+        r = subprocess.run(
+            P4_DRY_RUN_CMD,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(PROJECT_ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        return "fail", "timeout after {}s".format(timeout)
+    except Exception as e:
+        return "fail", str(e)
+
+    out = (r.stdout or "") + (r.stderr or "")
+    if r.returncode == 0 and "[P4-DRY-RUN] PASS" in out:
+        return "pass", "dry_run_runtime_check OK"
+    err = out[-800:]
+    optional_deps = (
+        "No module named 'dgl'",
+        "No module named 'torch'",
+        "No module named 'torch_scatter'",
+        "No module named 'torch_geometric'",
+    )
+    if any(m in err for m in optional_deps):
+        return "skip", "missing optional dep: " + err.strip()[:200]
+    if "'NoneType' object has no attribute 'append'" in err:
+        return "fail", "t_typess None bug: " + err.strip()[:300]
+    return "fail", "exit {}: {}".format(r.returncode, err.strip()[:400])
+
+
 def main() -> int:
     failures = 0
     print("=== import_smoke_checks ===")
@@ -157,6 +211,14 @@ def main() -> int:
         print("       ", msg)
         if status == "fail":
             failures += 1
+
+    print()
+    print("--- P4 dry_run_runtime_check ---")
+    status, msg = check_p4_dry_runtime()
+    print("[{}] P4 dry_run {}".format(status.upper(), P4_MAIN.relative_to(EXP_ROOT)))
+    print("       ", msg)
+    if status == "fail":
+        failures += 1
 
     print()
     if failures:

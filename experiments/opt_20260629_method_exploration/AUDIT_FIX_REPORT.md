@@ -39,6 +39,7 @@ Glob under `experiments/opt_20260629_method_exploration/`:
 5. **parser paths** — `log_path.relative_to(ROOT)` with relative log + absolute ROOT
 6. **stage status** — parse/plot failure masked successful training (P2/P3)
 7. **common import path** — P4 failed with `ModuleNotFoundError: No module named 'path_utils'`; entry scripts used `CODE_DIR.parents[4]` to locate `common/` (points above repo root). `py_compile` did not catch it because imports are not executed.
+8. **P4 teacher preprocessing** — P4 passed import smoke but failed at teacher RW loop: `t_typess` initialized as `None` instead of `[]` → `AttributeError: 'NoneType' object has no attribute 'append'`. `--help` smoke could not catch this.
 
 ## Fixed Issues
 
@@ -47,6 +48,7 @@ Glob under `experiments/opt_20260629_method_exploration/`:
 | Unified `bootstrap_paths` / `add_source_dir(nc\|lp)` | `common/path_utils.py`, P1–P5 entry scripts |
 | **Common `sys.path` bootstrap (`EXP_ROOT = parents[2]`)** | P0–P5 entry/parse/plot scripts (16 files); `bootstrap_common_path()` in `path_utils.py` |
 | **Import-level smoke test** | `common/import_smoke_checks.py`, `server_scripts/smoke_test_method_exploration.sh` |
+| **P4 teacher flow alignment + dry run** | `build_rw_similarity_matrices()`, `--dry_run_runtime_check`, smoke test P4 runtime block |
 | `resolve_project_data_path` → `{ROOT}/data/` | All entry scripts |
 | `safe_relpath` + `resolve_under_root` | P1–P5 parsers, P0 scanner |
 | DGL CSR compat layer | `ppr_topk_lite.dgl_graph_to_scipy_csr` |
@@ -56,6 +58,7 @@ Glob under `experiments/opt_20260629_method_exploration/`:
 | Removed shell `PYTHONPATH` NC/LP mix | All server scripts (Python handles sys.path) |
 | Smoke test harness | `server_scripts/smoke_test_method_exploration.sh` |
 | Smoke test: real import / `--help` | `common/import_smoke_checks.py` — checks `path_utils`, `plot_utils`, parsers, entry `--help`; fails on missing common bootstrap |
+| Smoke test: P4 `dry_run_runtime_check` | Loads PubMed, builds RW/`t_typess`, one teacher+student forward; catches `t_typess None` and similar runtime bugs |
 
 ## Remaining Risks
 
@@ -102,7 +105,7 @@ python -m py_compile experiments/opt_20260629_method_exploration/common/plot_uti
 | **P3 ratio050** | **done** | Skip training; parse + ratio025 |
 | **P3 ratio025** | Pending | Normal run (skip050 auto) |
 | **P1** | Not run | Full `run_p1_sehgnn_lite_pubmed_nc.sh` |
-| **P4** | Blocked on `path_utils` — **fixed** | Re-run smoke test, then full `run_p4_distill_pubmed_nc.sh` |
+| **P4** | `t_typess None` — **fixed** | smoke + `dry_run_runtime_check` PASS → `run_p4_distill_pubmed_nc.sh` |
 
 ### P5 server results (recorded)
 
